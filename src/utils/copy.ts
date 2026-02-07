@@ -7,4 +7,6 @@ export const supportiveCopy = {
     'Not a diagnosis tool.',
   deleteWarning:
     'Deleting removes data from this device.',
+  moodTagging:
+    'Tag moods on purchases to see patterns.',
 }

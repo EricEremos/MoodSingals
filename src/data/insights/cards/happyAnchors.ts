@@ -1,42 +1,47 @@
-import type { InsightCardResult, InsightContext } from '../index'
-import { BASE_EVIDENCE, BASE_LIMITS } from '../evidence'
-export function happyAnchorsCard(context: InsightContext): InsightCardResult {
-  const positives = context.spendMoments.filter((moment) => moment.valence >= 0.4)
-  const byCategory = positives.reduce<Record<string, number>>((acc, moment) => {
-    acc[moment.category] = (acc[moment.category] || 0) + 1
-    return acc
-  }, {})
+import type { IndexResult } from '../../indices/types'
+import type { InsightContext } from '../index'
+import { worthItAnchorsSpec } from '../../indices/specs/worthItAnchors'
+import { directConfidence } from '../confidence'
+
+export function happyAnchorsCard(context: InsightContext): IndexResult {
+  const worthMoments = context.spendMoments.filter((moment) => moment.worth_it)
+  const worthTx = context.linkedTransactions.filter((tx) => tx.worth_it)
+  const byCategory: Record<string, number> = {}
+  const byMerchant: Record<string, number> = {}
+
+  worthMoments.forEach((moment) => {
+    byCategory[moment.category] = (byCategory[moment.category] || 0) + 1
+  })
+  worthTx.forEach((tx) => {
+    byCategory[tx.category] = (byCategory[tx.category] || 0) + 1
+    byMerchant[tx.merchant] = (byMerchant[tx.merchant] || 0) + 1
+  })
+
   const labels = Object.keys(byCategory).sort((a, b) => byCategory[b] - byCategory[a]).slice(0, 4)
   const values = labels.map((label) => byCategory[label])
-  const total = positives.length
+  const total = worthMoments.length + worthTx.length
 
-  const gap =
-    total < 5
-      ? {
-        message: 'Need 5 positive moments to find anchors.',
-        ctaLabel: 'Log a spend moment',
-          ctaHref: '/today',
-        }
-      : undefined
+  const confidence = directConfidence(context.directCount)
+  if (total < 10) confidence.reasons.push('Need 10 worth‑it marks')
 
   return {
-    id: 'happy-anchors',
-    title: 'Worth-it spending',
+    spec: worthItAnchorsSpec,
     insight:
       labels.length > 0
-        ? `Positive moments show up most in ${labels[0]}.`
-        : 'No “worth-it” pattern yet.',
-    data: { byCategory },
+        ? `Worth‑it shows up most in ${labels[0]}.`
+        : 'No worth‑it pattern yet.',
+    data: { byCategory, byMerchant },
+    detailsNote: 'Uses manual worth‑it marks.',
     vizSpec:
       labels.length > 0
         ? { type: 'bar', labels, values }
-        : { type: 'bar', labels: ['Log positive moments'], values: [1] },
-    microAction: 'Protect one worth-it spend.',
-    confidence: context.confidence,
-    howComputed: 'Positive-mood spend moments.',
-    evidence: BASE_EVIDENCE,
-    limits: BASE_LIMITS,
-    relevance: 0.85,
-    gap,
+        : { type: 'bar', labels: ['Mark worth‑it'], values: [1] },
+    microAction: 'Mark a spend as worth‑it when it feels right.',
+    confidence,
+    relevance: 0.8,
+    gap:
+      total < 10
+        ? { message: 'Need 10 worth‑it marks.', ctaLabel: 'Open timeline', ctaHref: '/timeline' }
+        : undefined,
   }
 }

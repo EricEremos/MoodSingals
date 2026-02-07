@@ -5,6 +5,16 @@ export type Confidence = {
   reasons: string[]
 }
 
+export function directConfidence(directCount: number): Confidence {
+  if (directCount >= 20) {
+    return { level: 'High', reasons: [] }
+  }
+  if (directCount >= 10) {
+    return { level: 'Med', reasons: ['Tag 20 for high confidence'] }
+  }
+  return { level: 'Low', reasons: ['Tag 10 purchases to estimate reliably'] }
+}
+
 export function confidenceFromCount(params: {
   count: number
   minMed: number

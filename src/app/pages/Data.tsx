@@ -5,11 +5,16 @@ import CSVWizard from '../../components/CSVWizard'
 export default function Data() {
   const [imports, setImports] = useState<ImportBatch[]>([])
   const [status, setStatus] = useState('')
+  const [taggedCount, setTaggedCount] = useState(0)
 
   useEffect(() => {
     const load = async () => {
-      const batches = await db.imports.orderBy('created_at').reverse().toArray()
+      const [batches, tagged] = await Promise.all([
+        db.imports.orderBy('created_at').reverse().toArray(),
+        db.tx_mood_annotations.count(),
+      ])
       setImports(batches)
+      setTaggedCount(tagged)
     }
     load()
   }, [])
@@ -29,6 +34,15 @@ export default function Data() {
         <div>
           <h1 className="page-title">Data</h1>
           <p className="section-subtitle">Import transactions (optional).</p>
+        </div>
+      </div>
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="inline-list">
+          <div className="helper">Mood‑tagged purchases: {taggedCount}</div>
+          <div className="helper">Tag 5 to unlock stronger insights.</div>
+          <a className="button button-muted" href="/timeline">
+            Tag purchases
+          </a>
         </div>
       </div>
       <CSVWizard />

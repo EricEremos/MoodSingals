@@ -88,7 +88,6 @@ export default function Insights() {
       await loadSampleData()
       setStatus('Demo data loaded (not your real data).')
       setLastRefresh(Date.now())
-      return
     }
   }
 

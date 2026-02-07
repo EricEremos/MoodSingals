@@ -17,6 +17,7 @@ Local-first analytics app for understanding the chain of **Emotion → Spend →
 - CSV upload only (no bank APIs)
 - 8 Insight Cards with confidence + explanation
 - Mood logging <10 seconds, 1–3 check-ins/day
+- Mood tags on imported transactions (fast, optional)
 - Privacy controls: delete/export, sensitive-data disclaimers
 - Static deploy on Cloudflare Pages (no backend)
 
@@ -39,11 +40,12 @@ Local-first analytics app for understanding the chain of **Emotion → Spend →
 
 ## Insight Engine
 Linking rule:
-- Transaction links to most recent mood in past **6 hours**
-- If `time_unknown`, link to same-day earlier mood only
+- DIRECT: mood tags attached to transactions (highest confidence)
+- INFERRED: nearest mood within **-2h / +6h**
+- If `time_unknown`, link to same-day mood only
 
 Confidence:
-- High/Med/Low based on sample size + missingness + time-unknown rate
+- High/Med/Low based on count of DIRECT tagged purchases
 
 Required cards:
 - Mood → Spend heatmap
@@ -75,6 +77,14 @@ Hidden Debug page (Settings → Debug):
 npm install
 npm run dev
 ```
+
+## Manual QA Checklist
+1. Import a CSV, then open Timeline.
+2. Click “+ Mood” on a transaction and save a mood tag.
+3. Confirm the mood pill appears and editing works.
+4. Use “Tag 5 purchases” and complete 5 tags in under 2 minutes.
+5. Open Insights and verify confidence improves after 10+ tagged purchases.
+6. Resize to 390px width and confirm modals and tables fit without overflow.
 
 ## Sources (Background)
 The MVP design is aligned with widely used local-first patterns: client-side CSV parsing with PapaParse (Worker + streaming), IndexedDB via Dexie for persistent storage, and lightweight charting (uPlot for performance). These are summarized in docs and demo repositories across the ecosystem (e.g., local-first budgeting apps, offline-first expense trackers, and IndexedDB performance guidance).

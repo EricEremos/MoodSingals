@@ -1,44 +1,55 @@
-import type { InsightCardResult, InsightContext } from '../index'
-import { BASE_EVIDENCE, BASE_LIMITS } from '../evidence'
+import type { IndexResult } from '../../indices/types'
+import type { InsightContext } from '../index'
+import { readinessSpec } from '../../indices/specs/readiness'
+import { directConfidence } from '../confidence'
 
-export function dataGapMirrorCard(context: InsightContext): InsightCardResult {
-  const spendCount = context.spendMoments.length
+export function readinessCard(context: InsightContext): IndexResult {
+  const spendCount = context.totalSpendRecords
   const moodCount = context.moodLogs.length
-  const missingSpend = Math.max(10 - spendCount, 0)
-  const missingMood = Math.max(5 - moodCount, 0)
+  const taggedCount = context.linkedTransactions.filter((tx) => tx.linkConfidence === 'High').length
+
+  const missingSpend = Math.max(20 - spendCount, 0)
+  const missingMood = Math.max(7 - moodCount, 0)
+  const missingTagged = Math.max(10 - taggedCount, 0)
 
   const nextGap =
-    missingSpend > 0
-      ? `Add ${missingSpend} spend moments`
-      : missingMood > 0
-        ? `Add ${missingMood} mood check-ins`
-        : 'Coverage is solid'
+    missingTagged > 0
+      ? `Tag ${missingTagged} purchases`
+      : missingSpend > 0
+        ? `Add ${missingSpend} spend records`
+        : missingMood > 0
+          ? `Add ${missingMood} mood check-ins`
+          : 'Coverage is solid'
 
   return {
-    id: 'data-gap-mirror',
-    title: 'Data gaps',
+    spec: readinessSpec,
     insight: nextGap,
-    data: { spendCount, moodCount },
+    data: { spendCount, moodCount, taggedCount },
+    detailsNote: 'Counts tagged purchases and overall coverage.',
     vizSpec: {
       type: 'bar',
-      labels: ['Spend moments', 'Mood logs'],
-      values: [spendCount, moodCount],
+      labels: ['Spend records', 'Mood logs', 'Mood‑tagged'],
+      values: [spendCount, moodCount, taggedCount],
     },
-    microAction: 'Log one more today.',
-    confidence: context.confidence,
-    howComputed: 'Compares counts to a baseline.',
-    evidence: BASE_EVIDENCE,
-    limits: BASE_LIMITS,
-    relevance: 0.6,
+    microAction: 'Tag 5 purchases to boost confidence.',
+    confidence: directConfidence(context.directCount),
+    relevance: 0.7,
     gap: {
       message:
-        missingSpend > 0
-          ? `Need ${missingSpend} more spend moments to reach baseline.`
-          : missingMood > 0
-            ? `Need ${missingMood} more mood check-ins to reach baseline.`
-            : 'You have baseline coverage. Keep logging to maintain it.',
-      ctaLabel: missingSpend > 0 ? 'Log a spend moment' : 'Log a mood',
-      ctaHref: '/today',
+        missingTagged > 0
+          ? `Tag ${missingTagged} purchases to improve confidence.`
+          : missingSpend > 0
+            ? `Add ${missingSpend} spend records to improve coverage.`
+            : missingMood > 0
+              ? `Add ${missingMood} mood check-ins to improve coverage.`
+              : 'You have baseline coverage. Keep logging to maintain it.',
+      ctaLabel:
+        missingTagged > 0
+          ? 'Tag purchases'
+          : missingSpend > 0
+            ? 'Log a spend moment'
+            : 'Log a mood',
+      ctaHref: missingTagged > 0 ? '/timeline' : '/today',
     },
   }
 }

@@ -15,6 +15,7 @@ export type Transaction = {
   import_batch_id: string
   raw_hash?: string
   mood_log_id?: string
+  worth_it?: boolean
 }
 
 export type SpendMoment = {
@@ -29,6 +30,7 @@ export type SpendMoment = {
   tags: string[]
   urge_level: 0 | 1 | 2
   note?: string
+  worth_it?: boolean
 }
 
 export type MoodLog = {
@@ -63,8 +65,21 @@ export type ImportBatch = {
   file_fingerprint?: string
 }
 
+export type TxMoodAnnotation = {
+  id: string
+  transaction_id: string
+  created_at: string
+  mood_label: string
+  valence: number
+  arousal: number
+  tags: string[]
+  memory_confidence?: 'high' | 'medium' | 'low'
+  note?: string
+}
+
 class MoodSignalsDB extends Dexie {
   transactions!: Table<Transaction, string>
+  tx_mood_annotations!: Table<TxMoodAnnotation, string>
   spend_moments!: Table<SpendMoment, string>
   mood_logs!: Table<MoodLog, string>
   imports!: Table<ImportBatch, string>
@@ -84,6 +99,14 @@ class MoodSignalsDB extends Dexie {
     })
     this.version(3).stores({
       transactions: 'id, occurred_at, category, import_batch_id, mood_log_id, raw_hash',
+      tx_mood_annotations: 'id, &transaction_id, created_at, mood_label',
+      spend_moments: 'id, created_at, category, urge_level',
+      mood_logs: 'id, occurred_at, mood_label',
+      imports: 'id, created_at',
+    })
+    this.version(4).stores({
+      transactions: 'id, occurred_at, category, import_batch_id, mood_log_id, raw_hash',
+      tx_mood_annotations: 'id, &transaction_id, created_at, mood_label',
       spend_moments: 'id, created_at, category, urge_level',
       mood_logs: 'id, occurred_at, mood_label',
       imports: 'id, created_at',

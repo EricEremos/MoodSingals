@@ -1,41 +1,58 @@
-import type { InsightCardResult, InsightContext } from '../index'
-import { BASE_EVIDENCE, BASE_LIMITS, RETAIL_THERAPY_EVIDENCE } from '../evidence'
-export function comfortSpendingPatternCard(context: InsightContext): InsightCardResult {
-  const lowMood = new Set(['Sad', 'Tired', 'Anxious', 'Stressed', 'Irritated'])
-  const discretionary = new Set(['Dining', 'Shopping', 'Subscriptions', 'Other'])
-  const lowMoodSpends = context.spendMoments.filter((moment) => lowMood.has(moment.mood_label))
-  const discretionaryCount = lowMoodSpends.filter((moment) =>
-    discretionary.has(moment.category),
-  ).length
+import type { IndexResult } from '../../indices/types'
+import type { InsightContext } from '../index'
+import { comfortSpendSpec } from '../../indices/specs/comfortSpend'
+import { directConfidence } from '../confidence'
 
-  const total = lowMoodSpends.length
+const DISCRETIONARY = new Set(['Dining', 'Shopping', 'Subscriptions', 'Other', 'Entertainment'])
+
+export function comfortSpendingPatternCard(context: InsightContext): IndexResult {
+  const linked = context.linkedTransactions.filter((tx) => tx.linkedMood)
+  const lowLinked = linked.filter((tx) => tx.linkedMood && tx.linkedMood.mood_valence <= -1)
+  const lowSpendMoments = context.spendMoments.filter((m) => m.valence <= -1)
+
+  const lowDiscretionary = [
+    ...lowSpendMoments.filter((m) => DISCRETIONARY.has(m.category)).map((m) => m.amount),
+    ...lowLinked.filter((tx) => DISCRETIONARY.has(tx.category)).map((tx) => tx.outflow || 0),
+  ]
+
+  const allDiscretionary = [
+    ...context.spendMoments.filter((m) => DISCRETIONARY.has(m.category)).map((m) => m.amount),
+    ...linked.filter((tx) => DISCRETIONARY.has(tx.category)).map((tx) => tx.outflow || 0),
+  ]
+
+  const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0)
+  const lowAvg = avg(lowDiscretionary)
+  const baseAvg = avg(allDiscretionary)
+  const delta = baseAvg ? ((lowAvg - baseAvg) / baseAvg) * 100 : 0
+
+  const totalLow = lowSpendMoments.length + lowLinked.length
+  const confidence = directConfidence(context.directCount)
+  const detailsNote =
+    context.directCount >= 10
+      ? 'Using direct mood tags.'
+      : 'Using inferred links (time window).'
   const gap =
-    total < 8
-      ? {
-          message: 'Need 8 low‑mood moments to spot comfort spending.',
-          ctaLabel: 'Log a spend moment',
-          ctaHref: '/today',
-        }
-      : undefined
+    context.directCount < 10
+      ? { message: 'Tag 10 purchases to unlock this insight.', ctaLabel: 'Tag purchases', ctaHref: '/timeline' }
+      : totalLow < 8
+        ? { message: 'Need 8 low‑mood moments.', ctaLabel: 'Log a mood', ctaHref: '/today' }
+        : undefined
 
   return {
-    id: 'comfort-spending',
-    title: 'Comfort spending',
+    spec: comfortSpendSpec,
     insight:
-      total >= 8
-        ? `${discretionaryCount} of ${total} low‑mood spends were discretionary.`
+      totalLow >= 8
+        ? `Low‑mood discretionary spend is ${delta >= 0 ? '+' : ''}${Math.round(delta)}% vs baseline.`
         : 'Not enough data yet.',
-    data: { total, discretionaryCount },
+    data: { lowAvg, baseAvg, delta },
+    detailsNote,
     vizSpec: {
       type: 'donut',
-      labels: ['Discretionary', 'Other'],
-      values: [discretionaryCount, Math.max(total - discretionaryCount, 0)],
+      labels: ['Low‑mood discretionary', 'Baseline'],
+      values: [lowAvg, baseAvg || 1],
     },
     microAction: 'Try a non‑spend comfort option once.',
-    confidence: context.confidence,
-    howComputed: 'Low‑mood moments followed by discretionary categories.',
-    evidence: [...BASE_EVIDENCE, RETAIL_THERAPY_EVIDENCE],
-    limits: BASE_LIMITS,
+    confidence,
     relevance: 0.8,
     gap,
   }

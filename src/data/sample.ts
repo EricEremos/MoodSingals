@@ -1,4 +1,4 @@
-import { db, type ImportBatch, type MoodLog, type SpendMoment, type Transaction } from './db'
+import { db, type ImportBatch, type MoodLog, type SpendMoment, type Transaction, type TxMoodAnnotation } from './db'
 import { MOODS } from './insights/moods'
 import { browserTimeZone, toISO } from '../utils/dates'
 import { sha256 } from '../utils/hash'
@@ -15,6 +15,7 @@ export async function loadSampleData() {
   const moodLogs: MoodLog[] = []
   const transactions: Transaction[] = []
   const spendMoments: SpendMoment[] = []
+  const annotations: TxMoodAnnotation[] = []
 
   const merchants = [
     'Metro Market',
@@ -78,6 +79,20 @@ export async function loadSampleData() {
         import_batch_id: SAMPLE_IMPORT_ID,
         mood_log_id: moodId,
       })
+
+      if (tx < 2) {
+        annotations.push({
+          id: await sha256(`sample-annotation-${txId}`),
+          transaction_id: txId,
+          created_at: toISO(new Date()),
+          mood_label: mood.label,
+          valence: mood.valence,
+          arousal: mood.arousal,
+          tags: ['work'].slice(0, (tx % 2) + 1),
+          memory_confidence: 'high',
+          note: 'Sample mood tag',
+        })
+      }
     }
 
     for (let sm = 0; sm < 3; sm += 1) {
@@ -104,6 +119,9 @@ export async function loadSampleData() {
   await db.mood_logs.bulkPut(moodLogs)
   await db.transactions.bulkPut(transactions)
   await db.spend_moments.bulkPut(spendMoments)
+  if (annotations.length) {
+    await db.tx_mood_annotations.bulkPut(annotations)
+  }
 
   const importBatch: ImportBatch = {
     id: SAMPLE_IMPORT_ID,
@@ -137,6 +155,9 @@ export async function loadSampleData() {
 export async function resetSampleData() {
   await db.transactions.where('import_batch_id').equals(SAMPLE_IMPORT_ID).delete()
   await db.imports.delete(SAMPLE_IMPORT_ID)
+  await db.tx_mood_annotations
+    .filter((entry) => entry.note === 'Sample mood tag')
+    .delete()
   await db.spend_moments
     .filter((entry) => entry.note === 'Sample spend moment')
     .delete()

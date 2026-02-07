@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { VizSpec } from '../../data/insights'
+import type { VizSpec } from '../../data/indices/viz'
 
 const ACCENT = '#3EE6D3'
 const ACCENT2 = '#8B7CFF'
