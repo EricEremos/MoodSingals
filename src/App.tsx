@@ -10,7 +10,11 @@ function App() {
         <header className="top-nav">
           <div className="brand">
             <span className="brand-mark">MoodSignals</span>
-            <span className="brand-tag">Emotion-Based Budget Tracker</span>
+            <span className="brand-tag">Local-first mood + money signals</span>
+          </div>
+          <div className="inline-list">
+            <span className="pill">Private by default</span>
+            <span className="pill">No cloud</span>
           </div>
           <nav className="nav-links">
             {navItems.map((route) => (
@@ -28,11 +32,13 @@ function App() {
           </nav>
         </header>
         <main className="main-content">
-          <Routes>
-            {allRoutes.map((route) => (
-              <Route key={route.path} path={route.path} element={route.element} />
-            ))}
-          </Routes>
+          <div className="container">
+            <Routes>
+              {allRoutes.map((route) => (
+                <Route key={route.path} path={route.path} element={route.element} />
+              ))}
+            </Routes>
+          </div>
         </main>
       </div>
     </BrowserRouter>

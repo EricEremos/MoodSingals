@@ -68,7 +68,7 @@ export default function Data() {
     <div>
       <div className="section-header">
         <div>
-          <h1 className="section-title">Data</h1>
+          <h1 className="page-title">Data</h1>
           <p className="section-subtitle">Import batches stored locally in IndexedDB.</p>
         </div>
       </div>

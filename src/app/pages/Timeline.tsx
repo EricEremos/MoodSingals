@@ -17,7 +17,7 @@ export default function Timeline() {
     <div>
       <div className="section-header">
         <div>
-          <h1 className="section-title">Timeline</h1>
+          <h1 className="page-title">Timeline</h1>
           <p className="section-subtitle">Recent transactions with local timestamps.</p>
         </div>
       </div>

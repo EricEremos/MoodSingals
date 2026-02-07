@@ -6,7 +6,10 @@ export default function ConfidenceBadge({ confidence }: { confidence: Confidence
     level === 'High' ? 'badge badge-high' : level === 'Med' ? 'badge badge-med' : 'badge badge-low'
 
   return (
-    <div className={className} title={confidence.reasons.join(', ') || 'Confidence score'}>
+    <div
+      className={className}
+      title={`Confidence: ${level}. ${confidence.reasons.join(', ') || 'Confidence score'}`}
+    >
       {level}
     </div>
   )

@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { db, type ImportBatch } from '../../data/db'
 import { guessMapping, type ColumnMapping } from '../../data/import/mapping'
 import { normalizeRows } from '../../data/import/normalize'
 import { browserTimeZone } from '../../utils/dates'
 import { sha256 } from '../../utils/hash'
+import { loadSampleData } from '../../data/sample'
+import { downloadTemplateCsv } from '../../utils/templateCsv'
 
 type WorkerResult =
   | {
@@ -38,6 +40,7 @@ const DEFAULT_MAPPING: ColumnMapping = {
 const BATCH_SIZE = 750
 
 export default function CSVWizard({ onImported }: { onImported?: () => void }) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [worker, setWorker] = useState<Worker | null>(null)
   const [headers, setHeaders] = useState<string[]>([])
@@ -58,6 +61,8 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
   const [timeUnknownPct, setTimeUnknownPct] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
+  const [status, setStatus] = useState('')
 
   useEffect(() => {
     if (!file) return
@@ -81,7 +86,7 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
         setMapping(guessMapping(payload.headers))
       }
       if (payload.type === 'error') {
-        setError('CSV parse failed. Please check the file format.')
+        setError('This does not look like a CSV.')
       }
     }
     workerInstance.postMessage({ file })
@@ -106,6 +111,19 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
   const canImport = useMemo(() => {
     return Boolean(mapping.date && mapping.amount && !importing && rows.length)
   }, [mapping, importing, rows.length])
+
+  const mappingStatus = useMemo(() => {
+    if (error) return 'This does not look like a CSV'
+    if (!rows.length) return ''
+    if (!mapping.date || !mapping.amount) return 'Missing Date or Amount column'
+    return 'File looks valid'
+  }, [error, rows.length, mapping.date, mapping.amount])
+
+  const statusTone = useMemo(() => {
+    if (!mappingStatus) return ''
+    if (mappingStatus === 'File looks valid') return 'status-ok'
+    return 'status-warn'
+  }, [mappingStatus])
 
   const handleImport = async () => {
     if (!canImport || !file) return
@@ -155,6 +173,7 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
       }
       await db.imports.add(importBatch)
       onImported?.()
+      setStatus('Imported on this device.')
     } catch (err) {
       setError('Import failed. Please retry or check your mappings.')
     } finally {
@@ -164,25 +183,55 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
   }
 
   return (
-    <div className="card" style={{ marginBottom: 24 }}>
+    <div className="card">
       <div className="section-header">
         <div>
-          <h2 className="section-title">CSV Mapping Wizard</h2>
-          <p className="section-subtitle">Upload a CSV and map fields to the canonical schema.</p>
+          <h2 className="section-title">Step 1 — Import your CSV</h2>
+          <p className="section-subtitle">Upload → map → import (local only).</p>
         </div>
+        <div className="tag">CSV only</div>
       </div>
+
+      <div className="inline-list" style={{ marginBottom: 12 }}>
+        <button
+          className="button button-primary"
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          Import transactions (CSV)
+        </button>
+        <button className="button button-ghost" type="button" onClick={() => setShowHelp(true)}>
+          Help me find the right file
+        </button>
+        <button
+          className="button"
+          type="button"
+          onClick={async () => {
+            setStatus('Loading sample data...')
+            await loadSampleData()
+            setStatus('Sample data loaded (not your real data).')
+            onImported?.()
+          }}
+        >
+          Try with sample data
+        </button>
+        <button className="button button-muted" type="button" onClick={downloadTemplateCsv}>
+          Download template CSV
+        </button>
+      </div>
+      <p className="helper">You can copy your data into this format.</p>
 
       <input
         type="file"
         accept=".csv,text/csv"
         className="input"
+        ref={fileInputRef}
         onChange={(event) => setFile(event.target.files?.[0] || null)}
       />
 
-      {progress > 0 && progress < 100 ? (
-        <p className="helper">Parsing... {progress}%</p>
-      ) : null}
+      {progress > 0 && progress < 100 ? <p className="helper">Parsing... {progress}%</p> : null}
       {error ? <p className="helper">{error}</p> : null}
+      {status ? <p className="helper">{status}</p> : null}
 
       {headers.length > 0 ? (
         <div style={{ marginTop: 20 }} className="grid grid-2">
@@ -226,9 +275,19 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
             <div className="tag">Delimiter: {delimiter}</div>
             <div className="tag">Rows: {rowCount}</div>
             <div className="tag">Sign: {signConvention}</div>
+            {mappingStatus ? (
+              <div className={statusTone}>
+                {mappingStatus === 'File looks valid' ? 'File looks valid ✅' : 'Needs mapping ⚠️'}
+              </div>
+            ) : null}
           </div>
+          {mappingStatus && mappingStatus !== 'File looks valid' ? (
+            <p className="helper" style={{ marginTop: 8 }}>
+              {mappingStatus}
+            </p>
+          ) : null}
           <div style={{ marginTop: 12 }}>
-            <label className="helper">Toggle sign convention</label>
+            <label className="helper">Sign convention</label>
             <div className="inline-list">
               <button
                 className={signConvention === 'negative-outflow' ? 'button button-primary' : 'button'}
@@ -249,7 +308,9 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
 
       {preview.length ? (
         <div style={{ marginTop: 20 }}>
-          <div className="helper">Preview (first 20 rows)</div>
+          <div className="helper">
+            Preview: {file?.name || 'Selected file'} · {rowCount} rows · {delimiter} delimiter
+          </div>
           <table className="table">
             <thead>
               <tr>
@@ -259,7 +320,7 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
               </tr>
             </thead>
             <tbody>
-              {preview.map((row, idx) => (
+              {preview.slice(0, 5).map((row, idx) => (
                 <tr key={`${row[0]}-${idx}`}>
                   {row.map((value, colIdx) => (
                     <td key={`${colIdx}-${value}`}>{value}</td>
@@ -273,7 +334,7 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
 
       <div style={{ marginTop: 20 }} className="inline-list">
         <button className="button button-primary" disabled={!canImport} onClick={handleImport}>
-          {importing ? 'Importing...' : 'Normalize + Import'}
+          {importing ? 'Importing...' : 'Import now'}
         </button>
         {dateFailures || amountFailures ? (
           <span className="helper">
@@ -288,6 +349,55 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
           </span>
         ) : null}
       </div>
+
+      {showHelp ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal">
+            <div className="modal-header">
+              <h3 className="insight-title">Find your transactions CSV</h3>
+              <button className="button button-ghost" onClick={() => setShowHelp(false)}>
+                Close
+              </button>
+            </div>
+            <div className="modal-content">
+              <div className="modal-block">
+                <div className="helper">Where to look</div>
+                <div className="inline-list">
+                  <span className="pill">Bank/Card Website</span>
+                  <span className="pill">Mobile Banking App</span>
+                  <span className="pill">Budgeting App Export</span>
+                </div>
+              </div>
+              <div className="modal-block">
+                <div className="helper">Universal steps</div>
+                <p className="helper">
+                  Transactions / Activity / Spending / Statements → Export / Download → CSV / Excel
+                </p>
+              </div>
+              <div className="modal-block">
+                <div className="helper">Recommended range</div>
+                <p className="helper">Last 60–90 days.</p>
+              </div>
+              <div className="modal-block">
+                <div className="helper">If PDF only</div>
+                <p className="helper">
+                  PDFs are not supported. Export transactions instead of statements.
+                </p>
+              </div>
+              <div className="modal-block">
+                <div className="helper">Excel → CSV</div>
+                <p className="helper">
+                  Open in Excel/Sheets → File → Save As / Download → CSV.
+                </p>
+              </div>
+              <div className="modal-block">
+                <div className="helper">Privacy</div>
+                <p className="helper">Processed on this device. Not uploaded.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

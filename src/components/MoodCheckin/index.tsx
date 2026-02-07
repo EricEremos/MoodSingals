@@ -56,11 +56,14 @@ export default function MoodCheckin({
     <div className="card">
       <div className="section-header">
         <div>
-          <h2 className="section-title">Quick Mood Check-in</h2>
-          <p className="section-subtitle">Tap a mood to save in under 10 seconds.</p>
+          <h2 className="section-title">Step 2 — Mood check-in</h2>
+          <p className="section-subtitle">Pick one mood. Optional tags and a short note.</p>
         </div>
-        <div className="tag">1–3x/day is plenty</div>
+        <div className="tag">5–10 seconds</div>
       </div>
+      <p className="helper" style={{ marginTop: -8 }}>
+        One tap saves instantly. You can add tags or a note afterward.
+      </p>
       <div className="mood-grid">
         {MOODS.map((mood) => (
           <button
@@ -73,7 +76,6 @@ export default function MoodCheckin({
           >
             <span style={{ fontSize: 20 }}>{mood.emoji}</span>
             <strong>{mood.label}</strong>
-            <span className="helper">Tap to save</span>
           </button>
         ))}
       </div>

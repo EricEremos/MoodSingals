@@ -96,7 +96,7 @@ export default function Settings() {
     <div>
       <div className="section-header">
         <div>
-          <h1 className="section-title">Settings</h1>
+          <h1 className="page-title">Settings</h1>
           <p className="section-subtitle">Control privacy, exports, and data resets.</p>
         </div>
       </div>

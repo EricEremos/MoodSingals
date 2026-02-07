@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { VizSpec } from '../../data/insights'
 
+const ACCENT = '#3EE6D3'
+const ACCENT2 = '#8B7CFF'
+const SURFACE = '#1B2840'
+const TEXT_MUTED = '#AAB6C8'
+
 function Sparkline({ values }: { values: number[] }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [fallback, setFallback] = useState(false)
@@ -24,7 +29,7 @@ function Sparkline({ values }: { values: number[] }) {
               { show: false },
               { show: false },
             ],
-            series: [{}, { stroke: '#ef6c3c', width: 2 }],
+            series: [{}, { stroke: ACCENT, width: 2 }],
             padding: [6, 6, 6, 6],
           },
           data,
@@ -50,7 +55,7 @@ function Sparkline({ values }: { values: number[] }) {
       .join(' ')
     return (
       <svg width="220" height="70" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <polyline fill="none" stroke="#ef6c3c" strokeWidth="2" points={points} />
+        <polyline fill="none" stroke={ACCENT} strokeWidth="2" points={points} />
       </svg>
     )
   }
@@ -68,7 +73,7 @@ function BarChart({ labels, values }: { labels: string[]; values: number[] }) {
           <div
             style={{
               height: 8,
-              background: '#f2efe6',
+              background: SURFACE,
               borderRadius: 999,
               position: 'relative',
             }}
@@ -81,7 +86,7 @@ function BarChart({ labels, values }: { labels: string[]; values: number[] }) {
                 bottom: 0,
                 width: `${(values[idx] / max) * 100}%`,
                 borderRadius: 999,
-                background: '#1b8a8f',
+                background: ACCENT,
               }}
             />
           </div>
@@ -111,7 +116,7 @@ function DonutChart({ labels, values }: { labels: string[]; values: number[] }) 
             cy="50"
             r={radius}
             fill="transparent"
-            stroke={idx === 0 ? '#1b8a8f' : '#ef6c3c'}
+            stroke={idx === 0 ? ACCENT : ACCENT2}
             strokeWidth="12"
             strokeDasharray={strokeDasharray}
             strokeDashoffset={strokeDashoffset}
@@ -130,7 +135,7 @@ function Heatmap({ xLabels, yLabels, values }: Extract<VizSpec, { type: 'heatmap
     <div className="heatmap">
       {yLabels.map((rowLabel, rowIdx) => (
         <div key={rowLabel} className="heatmap-row">
-          <div style={{ fontSize: 12, color: '#606a7a' }}>{rowLabel}</div>
+          <div style={{ fontSize: 12, color: TEXT_MUTED }}>{rowLabel}</div>
           {xLabels.map((colLabel, colIdx) => {
             const value = values[rowIdx]?.[colIdx] || 0
             const intensity = value / max
@@ -139,7 +144,7 @@ function Heatmap({ xLabels, yLabels, values }: Extract<VizSpec, { type: 'heatmap
                 key={`${rowLabel}-${colLabel}`}
                 className="heatmap-cell"
                 style={{
-                  background: `rgba(239, 108, 60, ${0.15 + intensity * 0.85})`,
+                  background: `rgba(62, 230, 211, ${0.15 + intensity * 0.85})`,
                 }}
                 title={`${colLabel}: ${value.toFixed(0)}`}
               />

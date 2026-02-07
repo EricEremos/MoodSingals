@@ -1,10 +1,10 @@
-import { useState } from 'react'
 import type { InsightCardResult } from '../../data/insights'
 import ChartMini from '../Charts'
 import ConfidenceBadge from '../ConfidenceBadge'
 
 export default function InsightCard({ card }: { card: InsightCardResult }) {
-  const [open, setOpen] = useState(false)
+  const isLow = card.confidence.level === 'Low'
+  const confidenceHint = card.confidence.reasons.join(' • ') || 'Confidence score'
 
   return (
     <div className="card">
@@ -14,13 +14,18 @@ export default function InsightCard({ card }: { card: InsightCardResult }) {
       </div>
       <p className="insight-line">{card.insight}</p>
       <ChartMini spec={card.vizSpec} />
-      <div className="micro-action">{card.microAction}</div>
-      <div className="accordion">
-        <button className="button button-muted" onClick={() => setOpen((v) => !v)}>
-          How computed
-        </button>
-        {open ? <p className="helper">{card.howComputed}</p> : null}
+      <div className="micro-action">
+        <strong>Next step:</strong> {card.microAction}
       </div>
+      <p className="helper" style={{ marginTop: 10 }}>
+        {isLow
+          ? `Low confidence: ${confidenceHint}. Add more data to improve signal quality.`
+          : confidenceHint}
+      </p>
+      <details className="accordion">
+        <summary>How computed</summary>
+        <p className="helper">{card.howComputed}</p>
+      </details>
     </div>
   )
 }
