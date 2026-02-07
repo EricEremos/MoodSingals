@@ -1,14 +1,13 @@
-import type { MoodLog, Transaction } from '../db'
-import { linkTransactionsToMood } from './linkMood'
-import { computeConfidence, type Confidence } from './confidence'
-import { heatmapCard } from './cards/heatmap'
-import { stressTriggersCard } from './cards/stressTriggers'
-import { lateNightCard } from './cards/lateNight'
-import { impulseRiskCard } from './cards/impulseRisk'
-import { comfortSpendCard } from './cards/comfortSpend'
+import type { MoodLog, SpendMoment, Transaction } from '../db'
+import { confidenceFromCount, type Confidence } from './confidence'
+import { dataGapMirrorCard } from './cards/heatmap'
+import { topTriggerTagsCard } from './cards/stressTriggers'
+import { lateNightLeakCard } from './cards/lateNight'
+import { impulseMomentsMapCard } from './cards/impulseRisk'
+import { smallFrequentLeaksCard } from './cards/comfortSpend'
 import { happyAnchorsCard } from './cards/happyAnchors'
-import { weekdayDriftCard } from './cards/weekdayDrift'
-import { unlinkedShareCard } from './cards/unlinkedShare'
+import { replacementWinsCard } from './cards/weekdayDrift'
+import { regretProxyCard } from './cards/unlinkedShare'
 
 export type VizSpec =
   | { type: 'heatmap'; xLabels: string[]; yLabels: string[]; values: number[][] }
@@ -26,52 +25,51 @@ export type InsightCardResult = {
   confidence: Confidence
   howComputed: string
   relevance: number
+  gap?: {
+    message: string
+    ctaLabel: string
+    ctaHref: string
+  }
 }
 
 export type InsightContext = {
-  transactions: Transaction[]
+  spendMoments: SpendMoment[]
   moodLogs: MoodLog[]
-  linked: ReturnType<typeof linkTransactionsToMood>
+  transactions: Transaction[]
   sampleSize: number
-  missingness: number
-  timeUnknownPct: number
   confidence: Confidence
 }
 
-export function computeInsights(transactions: Transaction[], moodLogs: MoodLog[]) {
-  const linked = linkTransactionsToMood(transactions, moodLogs)
-  const sampleSize = transactions.length
-  const missingness = sampleSize
-    ? linked.filter((tx) => !tx.linkedMood).length / sampleSize
-    : 1
-  const timeUnknownPct = sampleSize
-    ? transactions.filter((tx) => tx.time_unknown).length / sampleSize
-    : 0
-  const confidence = computeConfidence({
-    sampleSize,
-    missingness,
-    timeUnknownPct,
+export function computeInsights(
+  spendMoments: SpendMoment[],
+  moodLogs: MoodLog[],
+  transactions: Transaction[],
+) {
+  const sampleSize = spendMoments.length
+  const confidence = confidenceFromCount({
+    count: sampleSize,
+    minMed: 10,
+    minHigh: 30,
+    reasonLabel: 'spend moments',
   })
 
   const context: InsightContext = {
-    transactions,
     moodLogs,
-    linked,
+    spendMoments,
+    transactions,
     sampleSize,
-    missingness,
-    timeUnknownPct,
     confidence,
   }
 
   const cards = [
-    heatmapCard,
-    stressTriggersCard,
-    lateNightCard,
-    impulseRiskCard,
-    comfortSpendCard,
+    impulseMomentsMapCard,
+    topTriggerTagsCard,
+    lateNightLeakCard,
     happyAnchorsCard,
-    weekdayDriftCard,
-    unlinkedShareCard,
+    smallFrequentLeaksCard,
+    replacementWinsCard,
+    regretProxyCard,
+    dataGapMirrorCard,
   ]
     .map((fn) => fn(context))
     .filter(Boolean) as InsightCardResult[]

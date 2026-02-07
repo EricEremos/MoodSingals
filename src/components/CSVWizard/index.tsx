@@ -186,8 +186,8 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
     <div className="card">
       <div className="section-header">
         <div>
-          <h2 className="section-title">Step 1 — Import your CSV</h2>
-          <p className="section-subtitle">Upload → map → import (local only).</p>
+          <h2 className="section-title">Import history (CSV)</h2>
+          <p className="section-subtitle">Optional: backfill history (local only).</p>
         </div>
         <div className="tag">CSV only</div>
       </div>

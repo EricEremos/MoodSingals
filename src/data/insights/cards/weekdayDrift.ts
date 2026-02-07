@@ -1,29 +1,38 @@
 import type { InsightCardResult, InsightContext } from '../index'
+import { confidenceFromCount } from '../confidence'
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+export function replacementWinsCard(context: InsightContext): InsightCardResult {
+  const replacements = context.spendMoments.filter((moment) =>
+    moment.tags.some((tag) => tag.toLowerCase().includes('replace') || tag.toLowerCase().includes('swap')),
+  )
+  const total = replacements.length
 
-export function weekdayDriftCard(context: InsightContext): InsightCardResult {
-  const totals = context.transactions.reduce<Record<string, number>>((acc, tx) => {
-    const day = WEEKDAYS[new Date(tx.occurred_at).getDay()]
-    acc[day] = (acc[day] || 0) + tx.outflow
-    return acc
-  }, {})
+  const confidence = confidenceFromCount({
+    count: total,
+    minMed: 2,
+    minHigh: 5,
+    reasonLabel: 'replacement wins',
+  })
 
-  const values = WEEKDAYS.map((day) => totals[day] || 0)
-  const maxIndex = values.indexOf(Math.max(...values))
+  const gap =
+    total < 2
+      ? {
+          message: 'Tag 2 moments as “replace” or “swap” to track wins.',
+          ctaLabel: 'Log with tag',
+          ctaHref: '/log',
+        }
+      : undefined
 
   return {
-    id: 'weekday-drift',
-    title: 'Weekday Drift',
-    insight:
-      context.transactions.length > 0
-        ? `Highest outflow tends to land on ${WEEKDAYS[maxIndex]}.`
-        : 'No weekday pattern yet.',
-    data: { totals },
-    vizSpec: { type: 'bar', labels: WEEKDAYS, values },
-    microAction: 'Add a mid-week checkpoint if that day feels leaky.',
-    confidence: context.confidence,
-    howComputed: 'Totals outflow by day of week across all transactions.',
-    relevance: context.transactions.length ? 0.5 : 0.3,
+    id: 'replacement-wins',
+    title: 'Replacement Wins',
+    insight: total ? `You logged ${total} replacement wins this period.` : 'No replacement wins yet.',
+    data: { total },
+    vizSpec: { type: 'spark', values: [0, Math.max(total, 1), total] },
+    microAction: 'Try one small swap this week and tag it.',
+    confidence,
+    howComputed: 'Counts spend moments tagged as replace or swap.',
+    relevance: 0.7,
+    gap,
   }
 }

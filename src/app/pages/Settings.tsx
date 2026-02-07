@@ -6,18 +6,21 @@ export default function Settings() {
   const [imports, setImports] = useState(0)
   const [transactions, setTransactions] = useState(0)
   const [moods, setMoods] = useState(0)
+  const [spends, setSpends] = useState(0)
   const [status, setStatus] = useState('')
 
   useEffect(() => {
     const load = async () => {
-      const [importCount, txCount, moodCount] = await Promise.all([
+      const [importCount, txCount, moodCount, spendCount] = await Promise.all([
         db.imports.count(),
         db.transactions.count(),
         db.mood_logs.count(),
+        db.spend_moments.count(),
       ])
       setImports(importCount)
       setTransactions(txCount)
       setMoods(moodCount)
+      setSpends(spendCount)
     }
     load()
   }, [])
@@ -35,7 +38,13 @@ export default function Settings() {
       db.mood_logs.toArray(),
       db.imports.toArray(),
     ])
-    const payload = { transactions: tx, mood_logs: moodsData, imports: batches }
+    const spendsData = await db.spend_moments.toArray()
+    const payload = {
+      spend_moments: spendsData,
+      transactions: tx,
+      mood_logs: moodsData,
+      imports: batches,
+    }
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -47,9 +56,10 @@ export default function Settings() {
   }
 
   const exportCsv = async () => {
-    const [tx, moodsData] = await Promise.all([
+    const [tx, moodsData, spendsData] = await Promise.all([
       db.transactions.toArray(),
       db.mood_logs.toArray(),
+      db.spend_moments.toArray(),
     ])
 
     const serialize = (rows: Array<Record<string, unknown>>) => {
@@ -89,6 +99,14 @@ export default function Settings() {
     moodLink.click()
     URL.revokeObjectURL(moodUrl)
 
+    const spendBlob = new Blob([serialize(spendsData)], { type: 'text/csv' })
+    const spendUrl = URL.createObjectURL(spendBlob)
+    const spendLink = document.createElement('a')
+    spendLink.href = spendUrl
+    spendLink.download = 'moodsignals-spend-moments.csv'
+    spendLink.click()
+    URL.revokeObjectURL(spendUrl)
+
     setStatus('Exported CSV snapshots.')
   }
 
@@ -109,6 +127,7 @@ export default function Settings() {
         </div>
         <div className="card">
           <h3>Local Data Summary</h3>
+          <p className="helper">Spend moments: {spends}</p>
           <p className="helper">Imports: {imports}</p>
           <p className="helper">Transactions: {transactions}</p>
           <p className="helper">Mood logs: {moods}</p>

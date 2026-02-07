@@ -1,44 +1,50 @@
 import type { InsightCardResult, InsightContext } from '../index'
+import { confidenceFromCount } from '../confidence'
 
-const STRESS_MOODS = new Set(['Stressed', 'Anxious', 'Irritated'])
-
-export function stressTriggersCard(context: InsightContext): InsightCardResult {
-  const stressed = context.linked.filter(
-    (tx) => tx.linkedMood && STRESS_MOODS.has(tx.linkedMood.mood_label),
-  )
-
-  if (!stressed.length) {
-    return {
-      id: 'stress-triggers',
-      title: 'Stress Trigger Categories',
-      insight: 'No stress-linked spend yet. Keep logging moods to surface triggers.',
-      data: {},
-      vizSpec: { type: 'bar', labels: [], values: [] },
-      microAction: 'When stress hits, try a 60-second pause before checkout.',
-      confidence: { level: 'Low', reasons: ['Not enough stress-linked transactions'] },
-      howComputed: 'Looks at categories linked to high-stress moods.',
-      relevance: 0.4,
-    }
-  }
-
-  const totals = stressed.reduce<Record<string, number>>((acc, tx) => {
-    acc[tx.category] = (acc[tx.category] || 0) + tx.outflow
+export function topTriggerTagsCard(context: InsightContext): InsightCardResult {
+  const tagCounts = context.spendMoments.reduce<Record<string, number>>((acc, moment) => {
+    moment.tags.forEach((tag) => {
+      acc[tag] = (acc[tag] || 0) + 1
+    })
     return acc
   }, {})
 
-  const top = Object.entries(totals)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
+  const labels = Object.keys(tagCounts).sort((a, b) => tagCounts[b] - tagCounts[a]).slice(0, 4)
+  const values = labels.map((label) => tagCounts[label])
+  const totalTags = Object.values(tagCounts).reduce((acc, v) => acc + v, 0)
+
+  const confidence = confidenceFromCount({
+    count: totalTags,
+    minMed: 5,
+    minHigh: 12,
+    reasonLabel: 'tagged moments',
+  })
+
+  const gap =
+    totalTags < 5
+      ? {
+          message: 'Add tags to 5 spend moments to surface your top triggers.',
+          ctaLabel: 'Log with tags',
+          ctaHref: '/log',
+        }
+      : undefined
 
   return {
-    id: 'stress-triggers',
-    title: 'Stress Trigger Categories',
-    insight: `Stress-linked spend clusters in ${top.map(([cat]) => cat).join(', ')}.`,
-    data: { top },
-    vizSpec: { type: 'bar', labels: top.map(([cat]) => cat), values: top.map(([, value]) => value) },
-    microAction: 'Plan a calming alternative for your top stress category.',
-    confidence: context.confidence,
-    howComputed: 'Totals spend by category for moods tagged as stressed/anxious/irritated.',
-    relevance: 0.7,
+    id: 'top-trigger-tags',
+    title: 'Top Trigger Tags',
+    insight:
+      labels.length > 0
+        ? `Most tagged moments: ${labels.join(', ')}.`
+        : 'No trigger tags yet.',
+    data: { tagCounts },
+    vizSpec:
+      labels.length > 0
+        ? { type: 'bar', labels, values }
+        : { type: 'bar', labels: ['Add tags'], values: [1] },
+    microAction: 'Add one tag to your next spend moment.',
+    confidence,
+    howComputed: 'Counts the tags you add to spend moments.',
+    relevance: 0.9,
+    gap,
   }
 }

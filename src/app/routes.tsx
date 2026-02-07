@@ -1,13 +1,15 @@
 import Insights from './pages/Insights'
+import Log from './pages/Log'
 import Timeline from './pages/Timeline'
-import Data from './pages/Data'
+import Import from './pages/Import'
 import Settings from './pages/Settings'
 import Debug from './pages/Debug'
 
 export const navRoutes = [
   { path: '/', label: 'Insights', element: <Insights /> },
+  { path: '/log', label: 'Log', element: <Log /> },
   { path: '/timeline', label: 'Timeline', element: <Timeline /> },
-  { path: '/data', label: 'Data', element: <Data /> },
+  { path: '/import', label: 'Import', element: <Import /> },
   { path: '/settings', label: 'Settings', element: <Settings /> },
 ]
 

@@ -1,26 +1,20 @@
 import type { InsightCardResult, InsightContext } from '../index'
 
-export function unlinkedShareCard(context: InsightContext): InsightCardResult {
-  const unlinkedCount = context.linked.filter((tx) => !tx.linkedMood).length
-  const total = context.linked.length
-  const share = total ? (unlinkedCount / total) * 100 : 0
-
+export function regretProxyCard(_context: InsightContext): InsightCardResult {
   return {
-    id: 'unlinked-share',
-    title: 'Unlinked Spend Share',
-    insight:
-      total > 0
-        ? `${share.toFixed(1)}% of transactions have no nearby mood check-in.`
-        : 'No transactions to link yet.',
-    data: { share },
-    vizSpec: {
-      type: 'donut',
-      labels: ['Linked', 'Unlinked'],
-      values: [total - unlinkedCount, unlinkedCount],
+    id: 'regret-proxy',
+    title: 'Regret Proxy (V2)',
+    insight: 'Coming soon: a quick satisfaction toggle to learn from each spend.',
+    data: {},
+    vizSpec: { type: 'bar', labels: ['Coming soon'], values: [1] },
+    microAction: 'For now, add a short note if a spend felt off.',
+    confidence: { level: 'Low', reasons: ['Satisfaction toggle not enabled yet'] },
+    howComputed: 'Will use a 1–5 satisfaction check after spend moments.',
+    relevance: 0.5,
+    gap: {
+      message: 'This card activates after satisfaction tracking is enabled.',
+      ctaLabel: 'Log a spend moment',
+      ctaHref: '/log',
     },
-    microAction: 'Add a quick mood check-in after any notable spend.',
-    confidence: context.confidence,
-    howComputed: 'Calculates share of transactions without a recent mood log.',
-    relevance: total ? 0.65 : 0.3,
   }
 }

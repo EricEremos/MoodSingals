@@ -1,42 +1,48 @@
 import type { InsightCardResult, InsightContext } from '../index'
-import { percent } from '../../../utils/stats'
+import { confidenceFromCount } from '../confidence'
 
-export function lateNightCard(context: InsightContext): InsightCardResult {
-  const withTime = context.transactions.filter((tx) => !tx.time_unknown)
-  const lateNight = withTime.filter((tx) => {
-    const hour = new Date(tx.occurred_at).getHours()
-    return hour >= 22 || hour <= 2
+export function lateNightLeakCard(context: InsightContext): InsightCardResult {
+  const moments = context.spendMoments
+  const lateNight = moments.filter((moment) => {
+    const hour = new Date(moment.created_at).getHours()
+    return hour >= 22 || hour <= 5
+  })
+  const total = moments.length
+  const share = total ? lateNight.length / total : 0
+
+  const confidence = confidenceFromCount({
+    count: total,
+    minMed: 10,
+    minHigh: 30,
+    reasonLabel: 'spend moments',
   })
 
-  const totalOutflow = withTime.reduce((acc, tx) => acc + tx.outflow, 0)
-  const lateOutflow = lateNight.reduce((acc, tx) => acc + tx.outflow, 0)
-  const share = percent(lateOutflow, totalOutflow)
-
-  const insight =
-    totalOutflow > 0
-      ? `${share.toFixed(1)}% of timed spend lands between 10pm–2am.`
-      : 'Not enough timed spend data yet.'
-
-  const confidence =
-    context.timeUnknownPct > 0.35
+  const gap =
+    total < 10
       ? {
-          level: 'Low' as const,
-          reasons: [...context.confidence.reasons, 'Many transactions lack a time'],
+          message: 'Need 10 spend moments with timestamps to detect late-night patterns.',
+          ctaLabel: 'Log a spend moment',
+          ctaHref: '/log',
         }
-      : context.confidence
+      : undefined
 
   return {
-    id: 'late-night',
-    title: 'Late-Night Leak (22–02)',
-    insight,
-    data: { share, lateOutflow },
+    id: 'late-night-leak',
+    title: 'Late-night Leak',
+    insight:
+      total >= 10
+        ? `${Math.round(share * 100)}% of spend moments happen late night.`
+        : 'Not enough time data yet.',
+    data: { total, lateNight: lateNight.length },
     vizSpec: {
-      type: 'spark',
-      values: lateNight.map((tx) => tx.outflow).slice(-12),
+      type: 'donut',
+      labels: ['Late night', 'Other'],
+      values: [lateNight.length, Math.max(total - lateNight.length, 0)],
     },
-    microAction: 'If late-night spend feels impulsive, set a gentle cutoff ritual.',
+    microAction: 'If late-night spends feel impulsive, set a simple pause rule.',
     confidence,
-    howComputed: 'Looks at transactions with known time between 22:00 and 02:00.',
-    relevance: Math.min(1, share / 20 + 0.3),
+    howComputed: 'Looks at spend moments logged between 10pm and 5am.',
+    relevance: 0.8,
+    gap,
   }
 }

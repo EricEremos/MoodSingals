@@ -56,14 +56,11 @@ export default function MoodCheckin({
     <div className="card">
       <div className="section-header">
         <div>
-          <h2 className="section-title">Step 2 — Mood check-in</h2>
-          <p className="section-subtitle">Pick one mood. Optional tags and a short note.</p>
+          <h2 className="section-title">Mood Check-in</h2>
+          <p className="section-subtitle">Quick mood log.</p>
         </div>
-        <div className="tag">5–10 seconds</div>
+        <div className="tag">10 seconds</div>
       </div>
-      <p className="helper" style={{ marginTop: -8 }}>
-        One tap saves instantly. You can add tags or a note afterward.
-      </p>
       <div className="mood-grid">
         {MOODS.map((mood) => (
           <button

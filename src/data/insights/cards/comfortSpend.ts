@@ -1,29 +1,44 @@
 import type { InsightCardResult, InsightContext } from '../index'
+import { confidenceFromCount } from '../confidence'
 
-export function comfortSpendCard(context: InsightContext): InsightCardResult {
-  const lowMood = context.linked.filter(
-    (tx) => tx.linkedMood && tx.linkedMood.mood_valence < -0.4,
-  )
-  const totals = lowMood.reduce<Record<string, number>>((acc, tx) => {
-    acc[tx.category] = (acc[tx.category] || 0) + tx.outflow
-    return acc
-  }, {})
-  const top = Object.entries(totals)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
+export function smallFrequentLeaksCard(context: InsightContext): InsightCardResult {
+  const moments = context.spendMoments
+  const smalls = moments.filter((moment) => moment.amount <= 15)
+  const total = moments.length
+
+  const confidence = confidenceFromCount({
+    count: total,
+    minMed: 12,
+    minHigh: 30,
+    reasonLabel: 'spend moments',
+  })
+
+  const gap =
+    total < 12
+      ? {
+          message: 'Need 12 spend moments to spot small frequent leaks.',
+          ctaLabel: 'Log a spend moment',
+          ctaHref: '/log',
+        }
+      : undefined
 
   return {
-    id: 'comfort-spend',
-    title: 'Comfort Spend After Low Mood',
+    id: 'small-frequent-leaks',
+    title: 'Small Frequent Leaks',
     insight:
-      top.length > 0
-        ? `Comfort spend leans toward ${top.map(([cat]) => cat).join(', ')}.`
-        : 'No comfort-spend pattern yet.',
-    data: { top },
-    vizSpec: { type: 'bar', labels: top.map(([cat]) => cat), values: top.map(([, v]) => v) },
-    microAction: 'Prepare a non-spend comfort option for low-mood moments.',
-    confidence: context.confidence,
-    howComputed: 'Aggregates spend linked to moods with low valence.',
-    relevance: top.length ? 0.6 : 0.3,
+      total >= 12
+        ? `${smalls.length} of ${total} moments are under $15.`
+        : 'Not enough spend moments yet.',
+    data: { total, smalls: smalls.length },
+    vizSpec: {
+      type: 'donut',
+      labels: ['Under $15', 'Other'],
+      values: [smalls.length, Math.max(total - smalls.length, 0)],
+    },
+    microAction: 'Pick one small leak to swap for a cheaper alternative.',
+    confidence,
+    howComputed: 'Counts spend moments with amounts under $15.',
+    relevance: 0.75,
+    gap,
   }
 }

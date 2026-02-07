@@ -5,6 +5,21 @@ export type Confidence = {
   reasons: string[]
 }
 
+export function confidenceFromCount(params: {
+  count: number
+  minMed: number
+  minHigh: number
+  reasonLabel?: string
+}): Confidence {
+  const { count, minMed, minHigh, reasonLabel } = params
+  const reasons: string[] = []
+  if (count < minMed) reasons.push(`Need at least ${minMed} ${reasonLabel || 'logs'}`)
+  let level: ConfidenceLevel = 'Med'
+  if (count >= minHigh) level = 'High'
+  if (count < minMed) level = 'Low'
+  return { level, reasons }
+}
+
 export function computeConfidence(params: {
   sampleSize: number
   missingness: number

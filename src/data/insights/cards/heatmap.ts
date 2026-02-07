@@ -1,53 +1,47 @@
 import type { InsightCardResult, InsightContext } from '../index'
-import { groupBy } from '../../../utils/stats'
 
-export function heatmapCard(context: InsightContext): InsightCardResult {
-  if (!context.linked.length || !context.moodLogs.length) {
-    return {
-      id: 'heatmap',
-      title: 'Mood → Spend Heatmap',
-      insight: 'Import transactions and log moods to unlock the heatmap.',
-      data: {},
-      vizSpec: { type: 'heatmap', xLabels: [], yLabels: [], values: [] },
-      microAction: 'Try a quick mood check-in before your next purchase.',
-      confidence: { level: 'Low', reasons: ['No linked transactions yet'] },
-      howComputed: 'This compares linked moods with spend across top categories.',
-      relevance: 0.2,
-    }
-  }
+export function dataGapMirrorCard(context: InsightContext): InsightCardResult {
+  const spendCount = context.spendMoments.length
+  const moodCount = context.moodLogs.length
+  const missingSpend = Math.max(10 - spendCount, 0)
+  const missingMood = Math.max(5 - moodCount, 0)
 
-  const linked = context.linked.filter((tx) => tx.linkedMood)
-  const categories = Object.entries(
-    groupBy(linked, (tx) => tx.category || 'Uncategorized'),
-  )
-    .sort((a, b) =>
-      b[1].reduce((acc, tx) => acc + tx.outflow, 0) -
-      a[1].reduce((acc, tx) => acc + tx.outflow, 0),
-    )
-    .slice(0, 5)
-    .map(([category]) => category)
-
-  const moods = Array.from(
-    new Set(linked.map((tx) => tx.linkedMood?.mood_label || 'Unknown')),
-  )
-
-  const values = categories.map((category) =>
-    moods.map((mood) =>
-      linked
-        .filter((tx) => tx.category === category && tx.linkedMood?.mood_label === mood)
-        .reduce((acc, tx) => acc + tx.outflow, 0),
-    ),
-  )
+  const nextGap =
+    missingSpend > 0
+      ? `Add ${missingSpend} more spend moments`
+      : missingMood > 0
+        ? `Add ${missingMood} more mood check-ins`
+        : 'Coverage is solid'
 
   return {
-    id: 'heatmap',
-    title: 'Mood → Spend Heatmap',
-    insight: 'Spend intensity shifts by mood and category. Look for bright pockets.',
-    data: { categories, moods },
-    vizSpec: { type: 'heatmap', xLabels: moods, yLabels: categories, values },
-    microAction: 'Pick one bright cell and add a tiny pause before that mood-category combo.',
-    confidence: context.confidence,
-    howComputed: 'Linked spends are grouped by mood and top five categories, then summed.',
-    relevance: 0.8,
+    id: 'data-gap-mirror',
+    title: 'Data Gap Mirror',
+    insight: nextGap,
+    data: { spendCount, moodCount },
+    vizSpec: {
+      type: 'bar',
+      labels: ['Spend moments', 'Mood logs'],
+      values: [spendCount, moodCount],
+    },
+    microAction: 'Log one more moment today to keep the loop alive.',
+    confidence: {
+      level: missingSpend || missingMood ? 'Low' : 'Med',
+      reasons: [
+        missingSpend ? `${missingSpend} spend moments missing` : 'Spend coverage ok',
+        missingMood ? `${missingMood} moods missing` : 'Mood coverage ok',
+      ],
+    },
+    howComputed: 'Compares logged spend moments and mood check-ins to minimum coverage.',
+    relevance: 0.6,
+    gap: {
+      message:
+        missingSpend > 0
+          ? `Need ${missingSpend} more spend moments to reach baseline coverage.`
+          : missingMood > 0
+            ? `Need ${missingMood} more mood check-ins to reach baseline coverage.`
+            : 'You have baseline coverage. Keep logging to maintain it.',
+      ctaLabel: missingSpend > 0 ? 'Log a spend moment' : 'Log a mood',
+      ctaHref: missingSpend > 0 ? '/log' : '/log',
+    },
   }
 }

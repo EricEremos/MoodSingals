@@ -1,9 +1,10 @@
-import { db, type ImportBatch, type MoodLog, type Transaction } from './db'
+import { db, type ImportBatch, type MoodLog, type SpendMoment, type Transaction } from './db'
 import { MOODS } from './insights/moods'
 import { browserTimeZone, toISO } from '../utils/dates'
 import { sha256 } from '../utils/hash'
 
 const SAMPLE_IMPORT_ID = 'sample-import'
+const SAMPLE_SPEND_ID = 'sample-spend'
 
 function pick<T>(list: T[], idx: number) {
   return list[idx % list.length]
@@ -14,6 +15,7 @@ export async function loadSampleData() {
   const start = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
   const moodLogs: MoodLog[] = []
   const transactions: Transaction[] = []
+  const spendMoments: SpendMoment[] = []
 
   const merchants = [
     'Metro Market',
@@ -78,10 +80,30 @@ export async function loadSampleData() {
         mood_log_id: moodId,
       })
     }
+
+    for (let sm = 0; sm < 3; sm += 1) {
+      const spendTime = new Date(moodTime.getTime() + (sm + 2) * 60 * 60 * 1000)
+      const spendAmount = Number((Math.random() * 40 + 6).toFixed(2))
+      const spendId = await sha256(`sample-spend-${day}-${sm}-${spendTime.toISOString()}`)
+      const urgeLevel = (sm % 3) as 0 | 1 | 2
+      spendMoments.push({
+        id: spendId,
+        created_at: toISO(spendTime),
+        amount: spendAmount,
+        category: pick(categories, day + sm),
+        mood_label: mood.label,
+        valence: mood.valence,
+        arousal: mood.arousal,
+        tags: ['Work', 'Money'].slice(0, (sm % 2) + 1),
+        urge_level: urgeLevel,
+        note: 'Sample spend moment',
+      })
+    }
   }
 
   await db.mood_logs.bulkPut(moodLogs)
   await db.transactions.bulkPut(transactions)
+  await db.spend_moments.bulkPut(spendMoments)
 
   const importBatch: ImportBatch = {
     id: SAMPLE_IMPORT_ID,

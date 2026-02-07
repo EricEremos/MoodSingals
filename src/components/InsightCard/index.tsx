@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import type { InsightCardResult } from '../../data/insights'
 import ChartMini from '../Charts'
 import ConfidenceBadge from '../ConfidenceBadge'
@@ -17,6 +18,14 @@ export default function InsightCard({ card }: { card: InsightCardResult }) {
       <div className="micro-action">
         <strong>Next step:</strong> {card.microAction}
       </div>
+      {card.gap ? (
+        <div className="gap-panel">
+          <div className="helper">{card.gap.message}</div>
+          <Link className="button button-muted" to={card.gap.ctaHref}>
+            {card.gap.ctaLabel}
+          </Link>
+        </div>
+      ) : null}
       <p className="helper" style={{ marginTop: 10 }}>
         {isLow
           ? `Low confidence: ${confidenceHint}. Add more data to improve signal quality.`
