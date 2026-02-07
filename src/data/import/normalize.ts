@@ -78,7 +78,9 @@ export async function normalizeRows(
 
     const occurredAt = toISO(date)
     const descriptionTrimmed = description.trim()
-    const hashInput = `${occurredAt}|${amount}|${merchant}|${descriptionTrimmed}|${options.importBatchId}`
+    const rawInput = `${occurredAt}|${amount}|${merchant}|${descriptionTrimmed}`
+    const raw_hash = await sha256(rawInput)
+    const hashInput = `${rawInput}|${options.importBatchId}`
     const id = await sha256(hashInput)
 
     transactions.push({
@@ -94,6 +96,7 @@ export async function normalizeRows(
       inflow,
       time_unknown: timeUnknown,
       import_batch_id: options.importBatchId,
+      raw_hash,
     })
   }
 

@@ -89,11 +89,12 @@ export async function loadSampleData() {
         id: spendId,
         created_at: toISO(spendTime),
         amount: spendAmount,
+        currency: 'HKD',
         category: pick(categories, day + sm),
         mood_label: mood.label,
         valence: mood.valence,
         arousal: mood.arousal,
-        tags: ['Work', 'Money'].slice(0, (sm % 2) + 1),
+        tags: ['work', 'money-stress'].slice(0, (sm % 2) + 1),
         urge_level: urgeLevel,
         note: 'Sample spend moment',
       })
@@ -131,4 +132,15 @@ export async function loadSampleData() {
   if (!existing) {
     await db.imports.add(importBatch)
   }
+}
+
+export async function resetSampleData() {
+  await db.transactions.where('import_batch_id').equals(SAMPLE_IMPORT_ID).delete()
+  await db.imports.delete(SAMPLE_IMPORT_ID)
+  await db.spend_moments
+    .filter((entry) => entry.note === 'Sample spend moment')
+    .delete()
+  await db.mood_logs
+    .filter((entry) => entry.note === 'Sample mood check-in')
+    .delete()
 }

@@ -13,6 +13,7 @@ export type Transaction = {
   inflow: number
   time_unknown: boolean
   import_batch_id: string
+  raw_hash?: string
   mood_log_id?: string
 }
 
@@ -20,6 +21,7 @@ export type SpendMoment = {
   id: string
   created_at: string
   amount: number
+  currency: string
   category: string
   mood_label: string
   valence: number
@@ -56,6 +58,9 @@ export type ImportBatch = {
   compute_ms: number
   time_unknown_pct: number
   mapping: Record<string, string | null>
+  source_name?: string
+  mapping_json?: string
+  file_fingerprint?: string
 }
 
 class MoodSignalsDB extends Dexie {
@@ -72,7 +77,13 @@ class MoodSignalsDB extends Dexie {
       imports: 'id, created_at',
     })
     this.version(2).stores({
-      transactions: 'id, occurred_at, category, import_batch_id, mood_log_id',
+      transactions: 'id, occurred_at, category, import_batch_id, mood_log_id, raw_hash',
+      spend_moments: 'id, created_at, category, urge_level',
+      mood_logs: 'id, occurred_at, mood_label',
+      imports: 'id, created_at',
+    })
+    this.version(3).stores({
+      transactions: 'id, occurred_at, category, import_batch_id, mood_log_id, raw_hash',
       spend_moments: 'id, created_at, category, urge_level',
       mood_logs: 'id, occurred_at, mood_label',
       imports: 'id, created_at',
