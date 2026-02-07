@@ -4,7 +4,6 @@ import { browserTimeZone, toISO } from '../utils/dates'
 import { sha256 } from '../utils/hash'
 
 const SAMPLE_IMPORT_ID = 'sample-import'
-const SAMPLE_SPEND_ID = 'sample-spend'
 
 function pick<T>(list: T[], idx: number) {
   return list[idx % list.length]
