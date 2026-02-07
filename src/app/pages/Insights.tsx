@@ -141,6 +141,10 @@ export default function Insights() {
           <h1 className="page-title">Insights</h1>
           <p className="section-subtitle">Your week at a glance.</p>
         </div>
+        <div className="inline-list">
+          <span className="pill">Streak {getDailyStreak()}d</span>
+          {reflectionDue ? <span className="pill">Reflection due</span> : null}
+        </div>
       </div>
 
       {status ? <p className="helper">{status}</p> : null}

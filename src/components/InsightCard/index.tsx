@@ -26,9 +26,11 @@ export default function InsightCard({ card }: { card: InsightCardResult }) {
           </Link>
         </div>
       ) : null}
-      <p className="helper" style={{ marginTop: 10 }}>
-        {isLow ? `Low confidence: ${confidenceHint}.` : confidenceHint}
-      </p>
+      {isLow ? (
+        <p className="helper" style={{ marginTop: 10 }}>
+          Low confidence: {confidenceHint}.
+        </p>
+      ) : null}
       <details className="accordion">
         <summary>Details</summary>
         <p className="helper">{card.howComputed}</p>

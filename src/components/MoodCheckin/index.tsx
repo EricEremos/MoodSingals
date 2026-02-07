@@ -17,6 +17,12 @@ export default function MoodCheckin({
 
   const tagOptions = useMemo(() => TAGS, [])
 
+  const toneClass = (valence: number) => {
+    if (valence >= 0.4) return 'mood-button-positive'
+    if (valence <= -0.4) return 'mood-button-negative'
+    return 'mood-button-neutral'
+  }
+
   const toggleTag = (tag: string) => {
     setTags((prev) => {
       if (prev.includes(tag)) return prev.filter((t) => t !== tag)
@@ -65,7 +71,7 @@ export default function MoodCheckin({
         {MOODS.map((mood) => (
           <button
             key={mood.label}
-            className="mood-button"
+            className={`mood-button ${toneClass(mood.valence)}`}
             onClick={() => {
               saveMood(mood)
             }}

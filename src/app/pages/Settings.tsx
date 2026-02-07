@@ -110,6 +110,54 @@ export default function Settings() {
     setStatus('Exported CSV snapshots.')
   }
 
+  const exportSummary = async () => {
+    const [spendsData, moodsData] = await Promise.all([
+      db.spend_moments.toArray(),
+      db.mood_logs.toArray(),
+    ])
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+    const recentSpends = spendsData.filter(
+      (entry) => new Date(entry.created_at).getTime() >= weekAgo,
+    )
+    const recentMoods = moodsData.filter(
+      (entry) => new Date(entry.occurred_at).getTime() >= weekAgo,
+    )
+
+    const topCategories = recentSpends.reduce<Record<string, number>>((acc, entry) => {
+      acc[entry.category] = (acc[entry.category] || 0) + 1
+      return acc
+    }, {})
+    const topTags = recentSpends.reduce<Record<string, number>>((acc, entry) => {
+      entry.tags.forEach((tag) => {
+        acc[tag] = (acc[tag] || 0) + 1
+      })
+      return acc
+    }, {})
+
+    const payload = {
+      generated_at: new Date().toISOString(),
+      totals: {
+        spend_moments: spendsData.length,
+        mood_logs: moodsData.length,
+      },
+      last_7_days: {
+        spend_moments: recentSpends.length,
+        mood_logs: recentMoods.length,
+        top_categories: topCategories,
+        top_tags: topTags,
+      },
+    }
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'moodsignals-summary.json'
+    link.click()
+    URL.revokeObjectURL(url)
+    setStatus('Exported summary.')
+  }
+
   return (
     <div>
       <div className="section-header">
@@ -123,6 +171,7 @@ export default function Settings() {
         <div className="card">
           <h3>Privacy</h3>
           <p className="helper">{supportiveCopy.privacyDisclaimer}</p>
+          <p className="helper">{supportiveCopy.noDiagnosis}</p>
         </div>
         <div className="card">
           <h3>Data</h3>
@@ -139,6 +188,9 @@ export default function Settings() {
         <div className="inline-list">
           <button className="button button-primary" onClick={exportAll}>
             Export JSON
+          </button>
+          <button className="button" onClick={exportSummary}>
+            Export summary
           </button>
           <button className="button" onClick={exportCsv}>
             Export CSV

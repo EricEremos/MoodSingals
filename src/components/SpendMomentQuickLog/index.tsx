@@ -34,6 +34,12 @@ export default function SpendMomentQuickLog({
   const [saving, setSaving] = useState(false)
   const [undoId, setUndoId] = useState<string | null>(null)
 
+  const toneClass = (valence: number) => {
+    if (valence >= 0.4) return 'mood-button-positive'
+    if (valence <= -0.4) return 'mood-button-negative'
+    return 'mood-button-neutral'
+  }
+
   const tagOptions = useMemo(() => TAGS, [])
 
   const toggleTag = (tag: string) => {
@@ -132,7 +138,9 @@ export default function SpendMomentQuickLog({
           {QUICK_MOODS.map((option) => (
             <button
               key={option.label}
-              className={option.label === mood.label ? 'mood-button mood-button-active' : 'mood-button'}
+              className={`mood-button ${toneClass(option.valence)} ${
+                option.label === mood.label ? 'mood-button-active' : ''
+              }`}
               onClick={() => setMood(option)}
               type="button"
             >
@@ -173,6 +181,7 @@ export default function SpendMomentQuickLog({
             </button>
           ))}
         </div>
+        {!tags.length ? <p className="helper">Add up to 2 tags.</p> : null}
       </div>
 
       {!compact ? (
