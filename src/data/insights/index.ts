@@ -1,13 +1,14 @@
 import type { MoodLog, SpendMoment, Transaction } from '../db'
-import { confidenceFromCount, type Confidence } from './confidence'
+import { type Confidence } from './confidence'
+import { linkTransactionsToMood } from './linkMood'
 import { dataGapMirrorCard } from './cards/heatmap'
 import { topTriggerTagsCard } from './cards/stressTriggers'
 import { lateNightLeakCard } from './cards/lateNight'
 import { impulseMomentsMapCard } from './cards/impulseRisk'
-import { smallFrequentLeaksCard } from './cards/comfortSpend'
+import { comfortSpendingPatternCard } from './cards/comfortSpend'
 import { happyAnchorsCard } from './cards/happyAnchors'
-import { replacementWinsCard } from './cards/weekdayDrift'
-import { regretProxyCard } from './cards/unlinkedShare'
+import { smallFrequentLeaksCard } from './cards/smallFrequentLeaks'
+import { moodSpendMapCard } from './cards/moodSpendMap'
 
 export type VizSpec =
   | { type: 'heatmap'; xLabels: string[]; yLabels: string[]; values: number[][] }
@@ -24,6 +25,8 @@ export type InsightCardResult = {
   microAction: string
   confidence: Confidence
   howComputed: string
+  evidence: string[]
+  limits: string[]
   relevance: number
   gap?: {
     message: string
@@ -37,6 +40,9 @@ export type InsightContext = {
   moodLogs: MoodLog[]
   transactions: Transaction[]
   sampleSize: number
+  linkCoverage: number
+  linkedCount: number
+  totalSpendRecords: number
   confidence: Confidence
 }
 
@@ -45,30 +51,44 @@ export function computeInsights(
   moodLogs: MoodLog[],
   transactions: Transaction[],
 ) {
-  const sampleSize = spendMoments.length
-  const confidence = confidenceFromCount({
-    count: sampleSize,
-    minMed: 10,
-    minHigh: 30,
-    reasonLabel: 'spend moments',
-  })
+  const linkedTx = linkTransactionsToMood(transactions, moodLogs).filter((tx) => tx.linkedMood)
+  const totalSpendRecords = spendMoments.length + transactions.length
+  const linkedCount = spendMoments.length + linkedTx.length
+  const linkCoverage = totalSpendRecords ? linkedCount / totalSpendRecords : 0
+
+  let level: Confidence['level'] = 'Low'
+  if (totalSpendRecords >= 30 && moodLogs.length >= 10 && linkCoverage >= 0.4) {
+    level = 'High'
+  } else if (totalSpendRecords >= 15 && moodLogs.length >= 7) {
+    level = 'Med'
+  }
+
+  const reasons: string[] = []
+  if (totalSpendRecords < 15) reasons.push('Need 15 spend records')
+  if (moodLogs.length < 7) reasons.push('Need 7 mood logs')
+  if (linkCoverage < 0.4) reasons.push('Link coverage low')
+
+  const confidence: Confidence = { level, reasons }
 
   const context: InsightContext = {
     moodLogs,
     spendMoments,
     transactions,
-    sampleSize,
+    sampleSize: totalSpendRecords,
+    linkCoverage,
+    linkedCount,
+    totalSpendRecords,
     confidence,
   }
 
   const cards = [
-    impulseMomentsMapCard,
+    moodSpendMapCard,
     topTriggerTagsCard,
     lateNightLeakCard,
+    impulseMomentsMapCard,
+    comfortSpendingPatternCard,
     happyAnchorsCard,
     smallFrequentLeaksCard,
-    replacementWinsCard,
-    regretProxyCard,
     dataGapMirrorCard,
   ]
     .map((fn) => fn(context))

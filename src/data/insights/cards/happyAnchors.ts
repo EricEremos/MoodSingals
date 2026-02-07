@@ -1,6 +1,5 @@
 import type { InsightCardResult, InsightContext } from '../index'
-import { confidenceFromCount } from '../confidence'
-
+import { BASE_EVIDENCE, BASE_LIMITS } from '../evidence'
 export function happyAnchorsCard(context: InsightContext): InsightCardResult {
   const positives = context.spendMoments.filter((moment) => moment.valence >= 0.4)
   const byCategory = positives.reduce<Record<string, number>>((acc, moment) => {
@@ -11,19 +10,12 @@ export function happyAnchorsCard(context: InsightContext): InsightCardResult {
   const values = labels.map((label) => byCategory[label])
   const total = positives.length
 
-  const confidence = confidenceFromCount({
-    count: total,
-    minMed: 5,
-    minHigh: 12,
-    reasonLabel: 'positive moments',
-  })
-
   const gap =
     total < 5
       ? {
-          message: 'Need 5 positive moments to find anchors.',
-          ctaLabel: 'Log a spend moment',
-          ctaHref: '/log',
+        message: 'Need 5 positive moments to find anchors.',
+        ctaLabel: 'Log a spend moment',
+          ctaHref: '/today',
         }
       : undefined
 
@@ -40,8 +32,10 @@ export function happyAnchorsCard(context: InsightContext): InsightCardResult {
         ? { type: 'bar', labels, values }
         : { type: 'bar', labels: ['Log positive moments'], values: [1] },
     microAction: 'Protect one worth-it spend.',
-    confidence,
+    confidence: context.confidence,
     howComputed: 'Positive-mood spend moments.',
+    evidence: BASE_EVIDENCE,
+    limits: BASE_LIMITS,
     relevance: 0.85,
     gap,
   }

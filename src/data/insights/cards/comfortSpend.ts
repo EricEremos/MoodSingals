@@ -1,44 +1,42 @@
 import type { InsightCardResult, InsightContext } from '../index'
-import { confidenceFromCount } from '../confidence'
+import { BASE_EVIDENCE, BASE_LIMITS, RETAIL_THERAPY_EVIDENCE } from '../evidence'
+export function comfortSpendingPatternCard(context: InsightContext): InsightCardResult {
+  const lowMood = new Set(['Sad', 'Tired', 'Anxious', 'Stressed', 'Irritated'])
+  const discretionary = new Set(['Dining', 'Shopping', 'Subscriptions', 'Other'])
+  const lowMoodSpends = context.spendMoments.filter((moment) => lowMood.has(moment.mood_label))
+  const discretionaryCount = lowMoodSpends.filter((moment) =>
+    discretionary.has(moment.category),
+  ).length
 
-export function smallFrequentLeaksCard(context: InsightContext): InsightCardResult {
-  const moments = context.spendMoments
-  const smalls = moments.filter((moment) => moment.amount <= 15)
-  const total = moments.length
-
-  const confidence = confidenceFromCount({
-    count: total,
-    minMed: 12,
-    minHigh: 30,
-    reasonLabel: 'spend moments',
-  })
-
+  const total = lowMoodSpends.length
   const gap =
-    total < 12
+    total < 8
       ? {
-          message: 'Need 12 spend moments to spot small leaks.',
+          message: 'Need 8 low‑mood moments to spot comfort spending.',
           ctaLabel: 'Log a spend moment',
-          ctaHref: '/log',
+          ctaHref: '/today',
         }
       : undefined
 
   return {
-    id: 'small-frequent-leaks',
-    title: 'Small frequent leaks',
+    id: 'comfort-spending',
+    title: 'Comfort spending',
     insight:
-      total >= 12
-        ? `${smalls.length} of ${total} moments are under $15.`
+      total >= 8
+        ? `${discretionaryCount} of ${total} low‑mood spends were discretionary.`
         : 'Not enough data yet.',
-    data: { total, smalls: smalls.length },
+    data: { total, discretionaryCount },
     vizSpec: {
       type: 'donut',
-      labels: ['Under $15', 'Other'],
-      values: [smalls.length, Math.max(total - smalls.length, 0)],
+      labels: ['Discretionary', 'Other'],
+      values: [discretionaryCount, Math.max(total - discretionaryCount, 0)],
     },
-    microAction: 'Swap one small leak.',
-    confidence,
-    howComputed: 'Counts moments under $15.',
-    relevance: 0.75,
+    microAction: 'Try a non‑spend comfort option once.',
+    confidence: context.confidence,
+    howComputed: 'Low‑mood moments followed by discretionary categories.',
+    evidence: [...BASE_EVIDENCE, RETAIL_THERAPY_EVIDENCE],
+    limits: BASE_LIMITS,
+    relevance: 0.8,
     gap,
   }
 }

@@ -1,4 +1,5 @@
 import type { InsightCardResult, InsightContext } from '../index'
+import { BASE_EVIDENCE, BASE_LIMITS } from '../evidence'
 
 export function dataGapMirrorCard(context: InsightContext): InsightCardResult {
   const spendCount = context.spendMoments.length
@@ -24,14 +25,10 @@ export function dataGapMirrorCard(context: InsightContext): InsightCardResult {
       values: [spendCount, moodCount],
     },
     microAction: 'Log one more today.',
-    confidence: {
-      level: missingSpend || missingMood ? 'Low' : 'Med',
-      reasons: [
-        missingSpend ? `${missingSpend} spend moments missing` : 'Spend coverage ok',
-        missingMood ? `${missingMood} moods missing` : 'Mood coverage ok',
-      ],
-    },
+    confidence: context.confidence,
     howComputed: 'Compares counts to a baseline.',
+    evidence: BASE_EVIDENCE,
+    limits: BASE_LIMITS,
     relevance: 0.6,
     gap: {
       message:
@@ -41,7 +38,7 @@ export function dataGapMirrorCard(context: InsightContext): InsightCardResult {
             ? `Need ${missingMood} more mood check-ins to reach baseline.`
             : 'You have baseline coverage. Keep logging to maintain it.',
       ctaLabel: missingSpend > 0 ? 'Log a spend moment' : 'Log a mood',
-      ctaHref: missingSpend > 0 ? '/log' : '/log',
+      ctaHref: '/today',
     },
   }
 }

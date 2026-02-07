@@ -10,11 +10,13 @@ export function regretProxyCard(_context: InsightContext): InsightCardResult {
     microAction: 'Add a short note if a spend felt off.',
     confidence: { level: 'Low', reasons: ['Not enabled yet'] },
     howComputed: 'Satisfaction check after spends.',
+    evidence: ['Emotion model: valence × arousal.', 'Behavior change: COM‑B nudges.'],
+    limits: ['Feature not enabled.', 'Correlation ≠ causation.'],
     relevance: 0.5,
     gap: {
       message: 'This card activates after satisfaction tracking is enabled.',
       ctaLabel: 'Log a spend moment',
-      ctaHref: '/log',
+      ctaHref: '/today',
     },
   }
 }

@@ -1,47 +1,53 @@
 import type { InsightCardResult, InsightContext } from '../index'
-import { confidenceFromCount } from '../confidence'
-
+import { BASE_EVIDENCE, BASE_LIMITS } from '../evidence'
 export function lateNightLeakCard(context: InsightContext): InsightCardResult {
-  const moments = context.spendMoments
-  const lateNight = moments.filter((moment) => {
-    const hour = new Date(moment.created_at).getHours()
-    return hour >= 22 || hour <= 5
+  const txWithTime = context.transactions.filter((tx) => !tx.time_unknown)
+  const timeMissing = context.transactions.some((tx) => tx.time_unknown)
+  const events = [
+    ...context.spendMoments.map((moment) => new Date(moment.created_at)),
+    ...txWithTime.map((tx) => new Date(tx.occurred_at)),
+  ]
+  const lateNight = events.filter((date) => {
+    const hour = date.getHours()
+    return hour >= 22 || hour <= 2
   })
-  const total = moments.length
+  const total = events.length
   const share = total ? lateNight.length / total : 0
-
-  const confidence = confidenceFromCount({
-    count: total,
-    minMed: 10,
-    minHigh: 30,
-    reasonLabel: 'spend moments',
-  })
 
   const gap =
     total < 10
       ? {
-          message: 'Need 10 spend moments to spot late-night patterns.',
-          ctaLabel: 'Log a spend moment',
-          ctaHref: '/log',
+        message: 'Need 10 spend moments to spot late-night patterns.',
+        ctaLabel: 'Log a spend moment',
+          ctaHref: '/today',
         }
       : undefined
+
+  const limits = [...BASE_LIMITS]
+  if (timeMissing && txWithTime.length === 0) {
+    limits.unshift('Imported transactions missing time.')
+  }
 
   return {
     id: 'late-night-leak',
     title: 'Late-night spending',
     insight:
       total >= 10
-        ? `${Math.round(share * 100)}% of spend moments happen late night.`
-        : 'Not enough data yet.',
+        ? `${Math.round(share * 100)}% of spend records happen late night.`
+        : timeMissing && !context.spendMoments.length
+          ? 'Import is missing time. Log spend moments.'
+          : 'Not enough data yet.',
     data: { total, lateNight: lateNight.length },
     vizSpec: {
       type: 'donut',
       labels: ['Late night', 'Other'],
       values: [lateNight.length, Math.max(total - lateNight.length, 0)],
     },
-    microAction: 'Pause once before a late-night spend.',
-    confidence,
-    howComputed: 'Spend moments logged between 10pm and 5am.',
+    microAction: 'Pause once before a late‑night spend.',
+    confidence: context.confidence,
+    howComputed: 'Spend records between 10pm and 2am.',
+    evidence: BASE_EVIDENCE,
+    limits,
     relevance: 0.8,
     gap,
   }

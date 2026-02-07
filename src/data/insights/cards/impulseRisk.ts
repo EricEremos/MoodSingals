@@ -1,9 +1,8 @@
 import type { InsightCardResult, InsightContext } from '../index'
-import { confidenceFromCount } from '../confidence'
-
+import { BASE_EVIDENCE, BASE_LIMITS } from '../evidence'
 export function impulseMomentsMapCard(context: InsightContext): InsightCardResult {
   const highUrge = context.spendMoments.filter(
-    (moment) => moment.urge_level === 2 && moment.valence < 0,
+    (moment) => moment.urge_level >= 1 && moment.valence <= -1 && moment.arousal >= 2,
   )
   const byCategory = highUrge.reduce<Record<string, number>>((acc, moment) => {
     acc[moment.category] = (acc[moment.category] || 0) + 1
@@ -13,20 +12,13 @@ export function impulseMomentsMapCard(context: InsightContext): InsightCardResul
   const values = labels.map((label) => byCategory[label])
   const total = highUrge.length
 
-  const confidence = confidenceFromCount({
-    count: total,
-    minMed: 3,
-    minHigh: 8,
-    reasonLabel: 'high-urge moments',
-  })
-
   const gap =
     total < 3
       ? {
-          message: 'Need 3 high-urge moments to map a pattern.',
-          ctaLabel: 'Log a spend moment',
-          ctaHref: '/log',
-        }
+        message: 'Need 3 high-urge moments to map a pattern.',
+        ctaLabel: 'Log a spend moment',
+        ctaHref: '/today',
+      }
       : undefined
 
   return {
@@ -42,8 +34,10 @@ export function impulseMomentsMapCard(context: InsightContext): InsightCardResul
         ? { type: 'bar', labels, values }
         : { type: 'bar', labels: ['No data'], values: [1] },
     microAction: 'Pause once before a high-urge spend.',
-    confidence,
+    confidence: context.confidence,
     howComputed: 'High-urge spends with low mood.',
+    evidence: BASE_EVIDENCE,
+    limits: BASE_LIMITS,
     relevance: 0.95,
     gap,
   }
