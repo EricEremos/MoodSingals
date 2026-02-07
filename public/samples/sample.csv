@@ -1,0 +1,11 @@
+Date,Amount,Merchant,Description,Category,Currency
+2026-01-02, -12.50, Corner Cafe, Latte and pastry, Food, USD
+2026-01-02, 45.00, City Market, Groceries, Groceries, USD
+2026-01-03, -9.75, Transit Co, Bus pass, Transport, USD
+2026-01-04, -28.00, Studio Flow, Drop-in yoga, Wellness, USD
+2026-01-05, -60.00, StreamBox, Streaming subscription, Entertainment, USD
+2026-01-05, 1200.00, Payroll, Salary, Income, USD
+2026-01-06, -18.20, Late Bites, Late snack, Food, USD
+2026-01-06, -75.00, QuickCart, Household supplies, Home, USD
+2026-01-07, -24.90, Chill Beats, Concert ticket, Entertainment, USD
+2026-01-07, -15.00, Corner Cafe, Afternoon coffee, Food, USD
