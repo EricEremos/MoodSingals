@@ -16,7 +16,7 @@ export default function InsightCard({ card }: { card: InsightCardResult }) {
       <p className="insight-line">{card.insight}</p>
       <ChartMini spec={card.vizSpec} />
       <div className="micro-action">
-        <strong>Next step:</strong> {card.microAction}
+        <strong>Next:</strong> {card.microAction}
       </div>
       {card.gap ? (
         <div className="gap-panel">
@@ -34,6 +34,17 @@ export default function InsightCard({ card }: { card: InsightCardResult }) {
       <details className="accordion">
         <summary>Details</summary>
         <p className="helper">{card.howComputed}</p>
+      </details>
+      <details className="accordion">
+        <summary>Evidence &amp; limits</summary>
+        <ul className="helper">
+          {card.evidence.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+          {card.limits.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
       </details>
     </div>
   )

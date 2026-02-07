@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { db } from '../../data/db'
 import { supportiveCopy } from '../../utils/copy'
+import { loadSampleData, resetSampleData } from '../../data/sample'
 
 export default function Settings() {
   const [imports, setImports] = useState(0)
@@ -8,6 +9,12 @@ export default function Settings() {
   const [moods, setMoods] = useState(0)
   const [spends, setSpends] = useState(0)
   const [status, setStatus] = useState('')
+  const [demoMode, setDemoMode] = useState(
+    localStorage.getItem('ms_demo') === 'true',
+  )
+  const [researchMode, setResearchMode] = useState(
+    localStorage.getItem('ms_research_mode') === 'true',
+  )
 
   useEffect(() => {
     const load = async () => {
@@ -158,12 +165,31 @@ export default function Settings() {
     setStatus('Exported summary.')
   }
 
+  const toggleDemo = async () => {
+    const next = !demoMode
+    setDemoMode(next)
+    localStorage.setItem('ms_demo', String(next))
+    if (next) {
+      await loadSampleData()
+      setStatus('Demo data loaded.')
+    } else {
+      await resetSampleData()
+      setStatus('Demo data cleared.')
+    }
+  }
+
+  const toggleResearchMode = () => {
+    const next = !researchMode
+    setResearchMode(next)
+    localStorage.setItem('ms_research_mode', String(next))
+  }
+
   return (
     <div>
       <div className="section-header">
         <div>
           <h1 className="page-title">Settings</h1>
-          <p className="section-subtitle">Control privacy, exports, and data resets.</p>
+          <p className="section-subtitle">Privacy and data.</p>
         </div>
       </div>
 
@@ -174,7 +200,7 @@ export default function Settings() {
           <p className="helper">{supportiveCopy.noDiagnosis}</p>
         </div>
         <div className="card">
-          <h3>Data</h3>
+          <h3>Counts</h3>
           <p className="helper">Spend moments: {spends}</p>
           <p className="helper">Imports: {imports}</p>
           <p className="helper">Transactions: {transactions}</p>
@@ -183,7 +209,7 @@ export default function Settings() {
       </div>
 
       <div style={{ marginTop: 20 }} className="card">
-        <h3>Export & delete</h3>
+        <h3>Export / delete</h3>
         <p className="helper">{supportiveCopy.deleteWarning}</p>
         <div className="inline-list">
           <button className="button button-primary" onClick={exportAll}>
@@ -196,13 +222,39 @@ export default function Settings() {
             Export CSV
           </button>
           <button className="button" onClick={deleteAll}>
-            Delete All Data
+            Delete data
           </button>
           <a href="/settings/debug" className="button button-muted">
             Debug
           </a>
         </div>
         {status ? <p className="helper">{status}</p> : null}
+      </div>
+
+      <div style={{ marginTop: 20 }} className="card">
+        <h3>Demo data</h3>
+        <div className="inline-list">
+          <button className="button" onClick={toggleDemo}>
+            {demoMode ? 'Clear demo data' : 'Load demo data'}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 20 }} className="card">
+        <h3>Research mode</h3>
+        <div className="inline-list">
+          <button className="button" onClick={toggleResearchMode}>
+            {researchMode ? 'Disable research mode' : 'Enable research mode'}
+          </button>
+          {researchMode ? (
+            <a href="/research-mode" className="button button-muted">
+              Open research mode
+            </a>
+          ) : null}
+          <a href="/case-study" className="button button-muted">
+            Case study
+          </a>
+        </div>
       </div>
     </div>
   )

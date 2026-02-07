@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
-import { db, type ImportBatch, type MoodLog } from '../../data/db'
-import { MOODS } from '../../data/insights/moods'
-import { browserTimeZone, toISO } from '../../utils/dates'
-import { sha256 } from '../../utils/hash'
+import { db, type ImportBatch } from '../../data/db'
+import CSVWizard from '../../components/CSVWizard'
 
 export default function Data() {
   const [imports, setImports] = useState<ImportBatch[]>([])
@@ -25,60 +23,23 @@ export default function Data() {
     setStatus(`Deleted batch ${batch.filename}.`)
   }
 
-  const loadSampleMoods = async () => {
-    const moodByLabel = MOODS.reduce<Record<string, (typeof MOODS)[number]>>((acc, mood) => {
-      acc[mood.label] = mood
-      return acc
-    }, {})
-
-    const samples = [
-      { label: 'Focused', at: '2026-01-02T08:40:00' },
-      { label: 'Stressed', at: '2026-01-03T18:10:00' },
-      { label: 'Content', at: '2026-01-04T12:00:00' },
-      { label: 'Anxious', at: '2026-01-05T21:30:00' },
-      { label: 'Happy', at: '2026-01-06T19:15:00' },
-      { label: 'Tired', at: '2026-01-07T23:10:00' },
-    ]
-
-    const entries: MoodLog[] = []
-    for (const sample of samples) {
-      const mood = moodByLabel[sample.label]
-      if (!mood) continue
-      const occurredAt = new Date(sample.at)
-      const id = await sha256(`${mood.label}-${occurredAt.toISOString()}`)
-      entries.push({
-        id,
-        occurred_at: toISO(occurredAt),
-        timezone: browserTimeZone,
-        mood_label: mood.label,
-        mood_emoji: mood.emoji,
-        mood_valence: mood.valence,
-        mood_arousal: mood.arousal,
-        tags: [],
-        note: 'Demo mood check-in',
-        created_at: toISO(new Date()),
-      })
-    }
-
-    await db.mood_logs.bulkPut(entries)
-    setStatus('Loaded demo mood logs.')
-  }
-
   return (
     <div>
       <div className="section-header">
         <div>
           <h1 className="page-title">Data</h1>
-          <p className="section-subtitle">Import batches stored locally in IndexedDB.</p>
+          <p className="section-subtitle">Import transactions (optional).</p>
         </div>
       </div>
-      <div className="card">
-        <div className="inline-list" style={{ marginBottom: 12 }}>
-          <button className="button button-primary" onClick={loadSampleMoods}>
-            Load Demo Mood Logs
-          </button>
-          {status ? <span className="helper">{status}</span> : null}
+      <CSVWizard />
+
+      <div className="card" style={{ marginTop: 20 }}>
+        <div className="card-header">
+          <div>
+            <h2 className="section-title">Import history</h2>
+          </div>
         </div>
+        {status ? <span className="helper">{status}</span> : null}
         <table className="table">
           <thead>
             <tr>
@@ -100,7 +61,7 @@ export default function Data() {
                 <td>{batch.sign_convention}</td>
                 <td>
                   <button className="button" onClick={() => deleteBatch(batch)}>
-                    Delete Batch
+                    Delete
                   </button>
                 </td>
               </tr>

@@ -1,55 +1,59 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import InsightCard from '../../components/InsightCard'
-import SpendMomentQuickLog from '../../components/SpendMomentQuickLog'
-import { db, type MoodLog, type SpendMoment, type Transaction } from '../../data/db'
-import { computeInsights, confidenceScore, type InsightCardResult } from '../../data/insights'
+import { db, type MoodLog, type SpendMoment, type Transaction, type TxMoodAnnotation } from '../../data/db'
+import { computeInsights, confidenceScore } from '../../data/insights'
+import type { IndexResult } from '../../data/indices/types'
+import { linkTransactionsToMood } from '../../data/insights/linkMood'
 import { sameLocalDay } from '../../utils/dates'
 import { loadSampleData } from '../../data/sample'
+import { getDailyStreak } from '../../utils/streak'
+import { supportiveCopy } from '../../utils/copy'
 
 export default function Insights() {
   const [spendMoments, setSpendMoments] = useState<SpendMoment[]>([])
   const [moods, setMoods] = useState<MoodLog[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [cards, setCards] = useState<InsightCardResult[]>([])
-  const [computeMs, setComputeMs] = useState(0)
+  const [annotations, setAnnotations] = useState<TxMoodAnnotation[]>([])
+  const [cards, setCards] = useState<IndexResult[]>([])
   const [lastRefresh, setLastRefresh] = useState(0)
-  const [showQuickLog, setShowQuickLog] = useState(false)
   const [status, setStatus] = useState('')
-  const navigate = useNavigate()
+  const [taggedCount, setTaggedCount] = useState(0)
 
   useEffect(() => {
     const load = async () => {
-      const [spends, logs, tx] = await Promise.all([
+      const [spends, logs, tx, tagged, ann] = await Promise.all([
         db.spend_moments.toArray(),
         db.mood_logs.toArray(),
         db.transactions.toArray(),
+        db.tx_mood_annotations.count(),
+        db.tx_mood_annotations.toArray(),
       ])
       setSpendMoments(spends)
       setMoods(logs)
       setTransactions(tx)
+      setTaggedCount(tagged)
+      setAnnotations(ann)
     }
     load()
   }, [lastRefresh])
 
   useEffect(() => {
-    const start = performance.now()
-    const computed = computeInsights(spendMoments, moods, transactions)
+    const computed = computeInsights(spendMoments, moods, transactions, annotations)
     const sorted = computed.sort((a, b) => {
       const scoreA = confidenceScore(a.confidence.level) * a.relevance
       const scoreB = confidenceScore(b.confidence.level) * b.relevance
       return scoreB - scoreA
     })
-    const end = performance.now()
-    setComputeMs(Math.round(end - start))
     setCards(sorted)
-  }, [spendMoments, moods, transactions])
+  }, [spendMoments, moods, transactions, annotations])
 
   const today = new Date()
   const hasSpendToday = spendMoments.some((moment) =>
     sameLocalDay(new Date(moment.created_at), today),
   )
   const hasMoodToday = moods.some((mood) => sameLocalDay(new Date(mood.occurred_at), today))
+  const hasImport = transactions.length > 0
 
   const reflectionDue = useMemo(() => {
     if (!spendMoments.length && !moods.length) return false
@@ -58,79 +62,33 @@ export default function Insights() {
     return Date.now() - last > 6 * 24 * 60 * 60 * 1000
   }, [spendMoments.length, moods.length, lastRefresh])
 
-  const nextAction = useMemo(() => {
-    if (!spendMoments.length && !moods.length && !transactions.length) {
-      return {
-        title: 'Start with a spend moment',
-        description: 'Log one moment or try demo data.',
-        primaryLabel: 'Log spend moment',
-        primaryAction: 'quicklog',
-        secondaryLabel: 'Try demo data',
-        secondaryAction: 'demo',
-      }
-    }
-    if (reflectionDue) {
-      return {
-        title: 'Weekly reflection',
-        description: '3 minutes. Simple prompts.',
-        primaryLabel: 'Open reflection',
-        primaryAction: 'reflection',
-        secondaryLabel: 'Log spend moment',
-        secondaryAction: 'quicklog',
-      }
-    }
-    if (!hasSpendToday) {
-      return {
-        title: 'Log a spend moment',
-        description: 'Quick entry.',
-        primaryLabel: 'Log spend moment',
-        primaryAction: 'quicklog',
-        secondaryLabel: 'Log mood',
-        secondaryAction: 'mood',
-      }
-    }
-    if (!hasMoodToday) {
-      return {
-        title: 'Log today’s mood',
-        description: 'Quick mood check-in.',
-        primaryLabel: 'Log mood',
-        primaryAction: 'mood',
-        secondaryLabel: 'Log spend moment',
-        secondaryAction: 'quicklog',
-      }
-    }
-    return {
-      title: 'Review insights',
-      description: 'Your week at a glance.',
-      primaryLabel: 'View insights',
-      primaryAction: 'insights',
-      secondaryLabel: 'Log spend moment',
-      secondaryAction: 'quicklog',
-    }
-  }, [spendMoments.length, moods.length, transactions.length, reflectionDue, hasSpendToday, hasMoodToday])
+  const readiness = useMemo(() => {
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+    const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000
+    const moodsThisWeek = moods.filter(
+      (entry) => new Date(entry.occurred_at).getTime() >= weekAgo,
+    ).length
+    const spendLast30 =
+      spendMoments.filter((entry) => new Date(entry.created_at).getTime() >= monthAgo).length +
+      transactions.filter((entry) => new Date(entry.occurred_at).getTime() >= monthAgo).length
+    const linkedTx = linkTransactionsToMood(transactions, moods, annotations).filter((tx) => tx.linkedMood)
+    const linked = spendMoments.length + linkedTx.length
+    const total = spendMoments.length + transactions.length
+    return { moodsThisWeek, spendLast30, linked, total }
+  }, [moods, spendMoments, transactions, annotations])
+
+  const unlockedCount = useMemo(
+    () => cards.filter((card) => card.confidence.level !== 'Low').length,
+    [cards],
+  )
 
   const runAction = async (action: string) => {
-    if (action === 'quicklog') {
-      setShowQuickLog(true)
-      return
-    }
     if (action === 'demo') {
       setStatus('Loading demo data...')
       await loadSampleData()
       setStatus('Demo data loaded (not your real data).')
       setLastRefresh(Date.now())
       return
-    }
-    if (action === 'mood') {
-      navigate('/log')
-      return
-    }
-    if (action === 'insights') {
-      return
-    }
-    if (action === 'reflection') {
-      const reflection = document.getElementById('reflection')
-      reflection?.scrollIntoView({ behavior: 'smooth' })
     }
   }
 
@@ -139,7 +97,7 @@ export default function Insights() {
       <div className="section-header">
         <div>
           <h1 className="page-title">Insights</h1>
-          <p className="section-subtitle">Your week at a glance.</p>
+          <p className="section-subtitle">Overview.</p>
         </div>
         <div className="inline-list">
           <span className="pill">Streak {getDailyStreak()}d</span>
@@ -153,89 +111,58 @@ export default function Insights() {
         <div className="card card-elevated">
           <div className="card-header">
             <div>
-              <h2 className="insight-title">Next action</h2>
+              <h2 className="insight-title">Start here</h2>
             </div>
           </div>
-          <h3 style={{ marginTop: 0 }}>{nextAction.title}</h3>
-          <p className="helper">{nextAction.description}</p>
           <div className="inline-list" style={{ marginTop: 12 }}>
-            <button
-              className="button button-primary"
-              onClick={() => runAction(nextAction.primaryAction)}
-            >
-              {nextAction.primaryLabel}
+            <button className="button button-primary" onClick={() => runAction('demo')}>
+              Try demo data
             </button>
-            <button
-              className="button"
-              onClick={() => runAction(nextAction.secondaryAction)}
-            >
-              {nextAction.secondaryLabel}
-            </button>
+            <Link to="/today" className="button">
+              Start logging
+            </Link>
+            <Link to="/data" className="button button-muted">
+              Import (optional)
+            </Link>
           </div>
+          <ul className="checklist">
+            <li className={hasMoodToday ? 'done' : ''}>Log a mood</li>
+            <li className={hasSpendToday ? 'done' : ''}>Log a spend moment</li>
+            <li className={hasImport ? 'done' : ''}>Import history (optional)</li>
+            <li className="done">View insights</li>
+          </ul>
+          <p className="helper" style={{ marginTop: 8 }}>
+            Unlocked: {unlockedCount} cards
+          </p>
+          <p className="helper">{supportiveCopy.moodTagging}</p>
         </div>
 
         <div className="card">
           <div className="card-header">
             <div>
-              <h2 className="insight-title">Quick start</h2>
+              <h2 className="insight-title">Data readiness</h2>
             </div>
           </div>
-          <div className="stepper">
-            <div className={`step ${spendMoments.length ? 'step-done' : ''}`}>
-              <div>
-                <div className="step-title">1. Log a spend moment</div>
-              </div>
-              <span className="step-status">{spendMoments.length ? 'Done' : 'Now'}</span>
-            </div>
-            <div className={`step ${moods.length ? 'step-done' : ''}`}>
-              <div>
-                <div className="step-title">2. Log a mood</div>
-              </div>
-              <span className="step-status">{moods.length ? 'Done' : 'Next'}</span>
-            </div>
-            <div className={`step ${transactions.length ? 'step-done' : ''}`}>
-              <div>
-                <div className="step-title">3. Import history</div>
-              </div>
-              <span className="step-status">{transactions.length ? 'Done' : 'Optional'}</span>
-            </div>
-            <div className="inline-list">
-              <Link to="/log" className="button button-primary">
-                Log now
-              </Link>
-              <Link to="/import" className="button button-muted">
-                Import history
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ marginTop: 28 }} className="card">
-        <div className="card-header">
-          <div>
-            <h2 className="insight-title">Counts</h2>
-          </div>
-        </div>
-        <div className="status-grid">
-          <div className="status-row">
-            <span>Spend moments</span>
-            <span className="status-value">{spendMoments.length}</span>
-          </div>
-          <div className="status-row">
-            <span>Mood logs</span>
-            <span className="status-value">{moods.length}</span>
-          </div>
-          <div className="status-row">
-            <span>Imported transactions</span>
-            <span className="status-value">{transactions.length}</span>
-          </div>
-          {computeMs ? (
+          <div className="status-grid">
             <div className="status-row">
-              <span>Last compute</span>
-              <span className="status-value">{computeMs}ms</span>
+              <span>Moods this week</span>
+              <span className="status-value">{readiness.moodsThisWeek}/7</span>
             </div>
-          ) : null}
+            <div className="status-row">
+              <span>Spend last 30 days</span>
+              <span className="status-value">{readiness.spendLast30}/30</span>
+            </div>
+            <div className="status-row">
+              <span>Link coverage</span>
+              <span className="status-value">
+                {readiness.linked}/{readiness.total || 0}
+              </span>
+            </div>
+            <div className="status-row">
+              <span>Mood‑tagged purchases</span>
+              <span className="status-value">{taggedCount}</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -261,7 +188,7 @@ export default function Insights() {
             >
               Mark done
             </button>
-            <Link to="/log" className="button">
+            <Link to="/today" className="button">
               Log a moment
             </Link>
           </div>
@@ -272,35 +199,15 @@ export default function Insights() {
         <div className="section-header">
           <div>
             <h2 className="section-title">Insight cards</h2>
-            <p className="section-subtitle">Short, clear, and actionable.</p>
+            <p className="section-subtitle">Actionable signals.</p>
           </div>
         </div>
         <div className="card-feed">
           {cards.map((card) => (
-            <InsightCard key={card.id} card={card} />
+            <InsightCard key={card.spec.id} card={card} />
           ))}
         </div>
       </div>
-
-      {showQuickLog ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true">
-          <div className="modal">
-            <div className="modal-header">
-              <h3 className="insight-title">Log a spend moment</h3>
-              <button className="button button-ghost" onClick={() => setShowQuickLog(false)}>
-                Close
-              </button>
-            </div>
-            <SpendMomentQuickLog
-              compact
-              onSaved={() => {
-                setLastRefresh(Date.now())
-                setShowQuickLog(false)
-              }}
-            />
-          </div>
-        </div>
-      ) : null}
     </div>
   )
 }

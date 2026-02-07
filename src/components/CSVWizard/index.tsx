@@ -126,6 +126,9 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
     setError(null)
     try {
       const importBatchId = await sha256(`${file.name}-${Date.now()}`)
+      const fileFingerprint = await sha256(
+        `${file.name}-${file.size}-${file.lastModified}`,
+      )
       const normalizeStart = performance.now()
       const normalizeResult = await normalizeRows(headers, rows, mapping, {
         timezone: browserTimeZone,
@@ -142,7 +145,16 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
       const dbStart = performance.now()
       for (let i = 0; i < normalizeResult.transactions.length; i += BATCH_SIZE) {
         const chunk = normalizeResult.transactions.slice(i, i + BATCH_SIZE)
-        await db.transactions.bulkPut(chunk)
+        const hashes = chunk.map((tx) => tx.raw_hash).filter(Boolean) as string[]
+        let filtered = chunk
+        if (hashes.length) {
+          const existing = await db.transactions.where('raw_hash').anyOf(hashes).toArray()
+          const existingSet = new Set(existing.map((tx) => tx.raw_hash))
+          filtered = chunk.filter((tx) => !tx.raw_hash || !existingSet.has(tx.raw_hash))
+        }
+        if (filtered.length) {
+          await db.transactions.bulkPut(filtered)
+        }
       }
       const dbEnd = performance.now()
 
@@ -160,6 +172,9 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
         compute_ms: 0,
         time_unknown_pct: Number((timeUnknownPctCalc * 100).toFixed(2)),
         mapping,
+        source_name: 'csv',
+        mapping_json: JSON.stringify(mapping),
+        file_fingerprint: fileFingerprint,
       }
       await db.imports.add(importBatch)
       onImported?.()
@@ -176,8 +191,8 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
     <div className="card">
       <div className="section-header">
         <div>
-          <h2 className="section-title">Import history (CSV)</h2>
-          <p className="section-subtitle">Optional history import.</p>
+          <h2 className="section-title">Import transactions</h2>
+          <p className="section-subtitle">Optional history.</p>
         </div>
       </div>
 
@@ -187,7 +202,7 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
           type="button"
           onClick={() => fileInputRef.current?.click()}
         >
-          Import CSV
+          Import transactions (CSV)
         </button>
         <button className="button button-ghost" type="button" onClick={() => setShowHelp(true)}>
           Help me find the right file
@@ -346,7 +361,9 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
             </div>
             <div className="modal-block">
               <div className="helper">Steps</div>
-              <p className="helper">Transactions → Export/Download → CSV/Excel</p>
+              <p className="helper">
+                Transactions / Activity / Spending / Statements → Export/Download → CSV/Excel
+              </p>
             </div>
             <div className="modal-block">
               <div className="helper">Recommended range</div>
@@ -354,7 +371,9 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
             </div>
             <div className="modal-block">
               <div className="helper">If PDF only</div>
-              <p className="helper">PDFs aren’t supported. Export transactions.</p>
+              <p className="helper">
+                PDFs aren’t supported. Export transactions. Avoid uploading statements to random sites.
+              </p>
             </div>
             <div className="modal-block">
               <div className="helper">Excel → CSV</div>
@@ -362,7 +381,7 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
             </div>
             <div className="modal-block">
               <div className="helper">Privacy</div>
-              <p className="helper">Stays on this device.</p>
+              <p className="helper">Processed on this device. Not uploaded.</p>
             </div>
           </div>
         </div>
