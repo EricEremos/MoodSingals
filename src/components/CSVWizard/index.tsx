@@ -51,14 +51,9 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
   const [rowCount, setRowCount] = useState(0)
   const [delimiter, setDelimiter] = useState(',')
   const [parseMs, setParseMs] = useState(0)
-  const [normalizeMs, setNormalizeMs] = useState(0)
-  const [dbWriteMs, setDbWriteMs] = useState(0)
-  const [dateFailures, setDateFailures] = useState(0)
-  const [amountFailures, setAmountFailures] = useState(0)
   const [signConvention, setSignConvention] = useState<'negative-outflow' | 'positive-outflow'>(
     'negative-outflow',
   )
-  const [timeUnknownPct, setTimeUnknownPct] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
@@ -139,14 +134,10 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
         defaultCategory: 'Uncategorized',
       })
       const normalizeEnd = performance.now()
-      setNormalizeMs(Math.round(normalizeEnd - normalizeStart))
-      setDateFailures(normalizeResult.dateFailures)
-      setAmountFailures(normalizeResult.amountFailures)
 
       const timeUnknownPctCalc = normalizeResult.transactions.length
         ? normalizeResult.timeUnknownCount / normalizeResult.transactions.length
         : 0
-      setTimeUnknownPct(timeUnknownPctCalc)
 
       const dbStart = performance.now()
       for (let i = 0; i < normalizeResult.transactions.length; i += BATCH_SIZE) {
@@ -154,7 +145,6 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
         await db.transactions.bulkPut(chunk)
       }
       const dbEnd = performance.now()
-      setDbWriteMs(Math.round(dbEnd - dbStart))
 
       const importBatch: ImportBatch = {
         id: importBatchId,
