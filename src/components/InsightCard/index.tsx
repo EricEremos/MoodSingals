@@ -27,12 +27,10 @@ export default function InsightCard({ card }: { card: InsightCardResult }) {
         </div>
       ) : null}
       <p className="helper" style={{ marginTop: 10 }}>
-        {isLow
-          ? `Low confidence: ${confidenceHint}. Add more data to improve signal quality.`
-          : confidenceHint}
+        {isLow ? `Low confidence: ${confidenceHint}.` : confidenceHint}
       </p>
       <details className="accordion">
-        <summary>How computed</summary>
+        <summary>Details</summary>
         <p className="helper">{card.howComputed}</p>
       </details>
     </div>

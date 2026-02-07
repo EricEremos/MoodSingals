@@ -21,7 +21,7 @@ export function happyAnchorsCard(context: InsightContext): InsightCardResult {
   const gap =
     total < 5
       ? {
-          message: 'Need 5 positive-leaning spend moments to find happy anchors.',
+          message: 'Need 5 positive moments to find anchors.',
           ctaLabel: 'Log a spend moment',
           ctaHref: '/log',
         }
@@ -29,19 +29,19 @@ export function happyAnchorsCard(context: InsightContext): InsightCardResult {
 
   return {
     id: 'happy-anchors',
-    title: 'Happy Spend Anchors',
+    title: 'Worth-it spending',
     insight:
       labels.length > 0
         ? `Positive moments show up most in ${labels[0]}.`
-        : 'No positive anchors yet.',
+        : 'No “worth-it” pattern yet.',
     data: { byCategory },
     vizSpec:
       labels.length > 0
         ? { type: 'bar', labels, values }
         : { type: 'bar', labels: ['Log positive moments'], values: [1] },
-    microAction: 'Repeat one positive spend that felt steady.',
+    microAction: 'Protect one worth-it spend.',
     confidence,
-    howComputed: 'Looks at spend moments with positive valence.',
+    howComputed: 'Positive-mood spend moments.',
     relevance: 0.85,
     gap,
   }

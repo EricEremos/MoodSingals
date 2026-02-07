@@ -187,9 +187,8 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
       <div className="section-header">
         <div>
           <h2 className="section-title">Import history (CSV)</h2>
-          <p className="section-subtitle">Optional: backfill history (local only).</p>
+          <p className="section-subtitle">Optional history import.</p>
         </div>
-        <div className="tag">CSV only</div>
       </div>
 
       <div className="inline-list" style={{ marginBottom: 12 }}>
@@ -198,7 +197,7 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
           type="button"
           onClick={() => fileInputRef.current?.click()}
         >
-          Import transactions (CSV)
+          Import CSV
         </button>
         <button className="button button-ghost" type="button" onClick={() => setShowHelp(true)}>
           Help me find the right file
@@ -219,7 +218,6 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
           Download template CSV
         </button>
       </div>
-      <p className="helper">You can copy your data into this format.</p>
 
       <input
         type="file"
@@ -336,18 +334,6 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
         <button className="button button-primary" disabled={!canImport} onClick={handleImport}>
           {importing ? 'Importing...' : 'Import now'}
         </button>
-        {dateFailures || amountFailures ? (
-          <span className="helper">
-            Date failures: {dateFailures} · Amount failures: {amountFailures}
-          </span>
-        ) : null}
-        {normalizeMs || dbWriteMs ? (
-          <span className="helper">
-            Normalize: {normalizeMs}ms · DB write: {dbWriteMs}ms · Time unknown: {(
-              timeUnknownPct * 100
-            ).toFixed(1)}%
-          </span>
-        ) : null}
       </div>
 
       {showHelp ? (
@@ -359,44 +345,38 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
                 Close
               </button>
             </div>
-            <div className="modal-content">
-              <div className="modal-block">
-                <div className="helper">Where to look</div>
-                <div className="inline-list">
-                  <span className="pill">Bank/Card Website</span>
-                  <span className="pill">Mobile Banking App</span>
-                  <span className="pill">Budgeting App Export</span>
-                </div>
+          <div className="modal-content">
+            <div className="modal-block">
+              <div className="helper">Where to look</div>
+              <div className="inline-list">
+                <span className="pill">Bank/Card Website</span>
+                <span className="pill">Mobile Banking App</span>
+                <span className="pill">Budgeting App Export</span>
               </div>
-              <div className="modal-block">
-                <div className="helper">Universal steps</div>
-                <p className="helper">
-                  Transactions / Activity / Spending / Statements → Export / Download → CSV / Excel
-                </p>
-              </div>
-              <div className="modal-block">
-                <div className="helper">Recommended range</div>
-                <p className="helper">Last 60–90 days.</p>
-              </div>
-              <div className="modal-block">
-                <div className="helper">If PDF only</div>
-                <p className="helper">
-                  PDFs are not supported. Export transactions instead of statements.
-                </p>
-              </div>
-              <div className="modal-block">
-                <div className="helper">Excel → CSV</div>
-                <p className="helper">
-                  Open in Excel/Sheets → File → Save As / Download → CSV.
-                </p>
-              </div>
-              <div className="modal-block">
-                <div className="helper">Privacy</div>
-                <p className="helper">Processed on this device. Not uploaded.</p>
-              </div>
+            </div>
+            <div className="modal-block">
+              <div className="helper">Steps</div>
+              <p className="helper">Transactions → Export/Download → CSV/Excel</p>
+            </div>
+            <div className="modal-block">
+              <div className="helper">Recommended range</div>
+              <p className="helper">Last 60–90 days.</p>
+            </div>
+            <div className="modal-block">
+              <div className="helper">If PDF only</div>
+              <p className="helper">PDFs aren’t supported. Export transactions.</p>
+            </div>
+            <div className="modal-block">
+              <div className="helper">Excel → CSV</div>
+              <p className="helper">File → Save As / Download → CSV.</p>
+            </div>
+            <div className="modal-block">
+              <div className="helper">Privacy</div>
+              <p className="helper">Stays on this device.</p>
             </div>
           </div>
         </div>
+      </div>
       ) : null}
     </div>
   )

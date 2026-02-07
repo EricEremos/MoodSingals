@@ -121,12 +121,11 @@ export default function Settings() {
 
       <div className="grid grid-2">
         <div className="card">
-          <h3>Privacy & Tone</h3>
+          <h3>Privacy</h3>
           <p className="helper">{supportiveCopy.privacyDisclaimer}</p>
-          <p className="helper">{supportiveCopy.sensitiveDisclaimer}</p>
         </div>
         <div className="card">
-          <h3>Local Data Summary</h3>
+          <h3>Data</h3>
           <p className="helper">Spend moments: {spends}</p>
           <p className="helper">Imports: {imports}</p>
           <p className="helper">Transactions: {transactions}</p>
@@ -135,7 +134,7 @@ export default function Settings() {
       </div>
 
       <div style={{ marginTop: 20 }} className="card">
-        <h3>Export & Delete</h3>
+        <h3>Export & delete</h3>
         <p className="helper">{supportiveCopy.deleteWarning}</p>
         <div className="inline-list">
           <button className="button button-primary" onClick={exportAll}>

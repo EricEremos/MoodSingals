@@ -78,7 +78,7 @@ export default function MoodCheckin({
       </div>
 
       <div style={{ marginTop: 20 }}>
-        <div className="helper">Optional tags (max 2)</div>
+        <div className="helper">Tags (max 2)</div>
         <div className="inline-list">
           {tagOptions.map((tag) => (
             <button
@@ -94,7 +94,7 @@ export default function MoodCheckin({
       </div>
 
       <div style={{ marginTop: 20 }}>
-        <div className="helper">Optional note (max 140)</div>
+        <div className="helper">Note (140 max)</div>
         <input
           className="input"
           value={note}

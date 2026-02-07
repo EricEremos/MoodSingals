@@ -6,11 +6,8 @@ export default function Import() {
       <div className="section-header">
         <div>
           <h1 className="page-title">Import</h1>
-          <p className="section-subtitle">
-            Optional: backfill history to improve insights. Local only.
-          </p>
+          <p className="section-subtitle">Optional history import.</p>
         </div>
-        <div className="tag">Secondary</div>
       </div>
 
       <CSVWizard />

@@ -10,7 +10,7 @@ export default function Log() {
       <div className="section-header">
         <div>
           <h1 className="page-title">Log</h1>
-          <p className="section-subtitle">Quick inputs to build a daily habit loop.</p>
+          <p className="section-subtitle">Quick daily logs.</p>
         </div>
       </div>
 

@@ -10,12 +10,9 @@ function App() {
         <header className="top-nav">
           <div className="brand">
             <span className="brand-mark">MoodSignals</span>
-            <span className="brand-tag">Local-first mood + money signals</span>
+            <span className="brand-tag">See how moods shape spending — without judgment.</span>
           </div>
-          <div className="inline-list">
-            <span className="pill">Private by default</span>
-            <span className="pill">No cloud</span>
-          </div>
+          <div className="inline-list" />
           <nav className="nav-links">
             {navItems.map((route) => (
               <NavLink

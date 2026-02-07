@@ -93,9 +93,9 @@ export default function SpendMomentQuickLog({
       <div className="section-header">
         <div>
           <h2 className="section-title">Spend Moment</h2>
-          <p className="section-subtitle">10 seconds. One tap save.</p>
+          <p className="section-subtitle">Fast log.</p>
         </div>
-        <div className="tag">Primary</div>
+        <div className="tag">10 seconds</div>
       </div>
 
       <div className="grid grid-2">
@@ -127,7 +127,7 @@ export default function SpendMomentQuickLog({
       </div>
 
       <div style={{ marginTop: 16 }}>
-        <label className="helper">Mood at the moment</label>
+        <label className="helper">Mood</label>
         <div className="mood-grid">
           {QUICK_MOODS.map((option) => (
             <button
@@ -144,7 +144,7 @@ export default function SpendMomentQuickLog({
       </div>
 
       <div style={{ marginTop: 16 }}>
-        <label className="helper">Urge level (optional)</label>
+          <label className="helper">Urge</label>
         <div className="inline-list">
           {[0, 1, 2].map((level) => (
             <button
@@ -160,7 +160,7 @@ export default function SpendMomentQuickLog({
       </div>
 
       <div style={{ marginTop: 16 }}>
-        <label className="helper">Context tags (optional)</label>
+        <label className="helper">Tags</label>
         <div className="inline-list">
           {tagOptions.map((tag) => (
             <button
@@ -177,7 +177,7 @@ export default function SpendMomentQuickLog({
 
       {!compact ? (
         <div style={{ marginTop: 16 }}>
-          <label className="helper">Note (optional)</label>
+          <label className="helper">Note</label>
           <input
             className="input"
             value={note}

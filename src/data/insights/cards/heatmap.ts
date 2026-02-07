@@ -8,14 +8,14 @@ export function dataGapMirrorCard(context: InsightContext): InsightCardResult {
 
   const nextGap =
     missingSpend > 0
-      ? `Add ${missingSpend} more spend moments`
+      ? `Add ${missingSpend} spend moments`
       : missingMood > 0
-        ? `Add ${missingMood} more mood check-ins`
+        ? `Add ${missingMood} mood check-ins`
         : 'Coverage is solid'
 
   return {
     id: 'data-gap-mirror',
-    title: 'Data Gap Mirror',
+    title: 'Data gaps',
     insight: nextGap,
     data: { spendCount, moodCount },
     vizSpec: {
@@ -23,7 +23,7 @@ export function dataGapMirrorCard(context: InsightContext): InsightCardResult {
       labels: ['Spend moments', 'Mood logs'],
       values: [spendCount, moodCount],
     },
-    microAction: 'Log one more moment today to keep the loop alive.',
+    microAction: 'Log one more today.',
     confidence: {
       level: missingSpend || missingMood ? 'Low' : 'Med',
       reasons: [
@@ -31,14 +31,14 @@ export function dataGapMirrorCard(context: InsightContext): InsightCardResult {
         missingMood ? `${missingMood} moods missing` : 'Mood coverage ok',
       ],
     },
-    howComputed: 'Compares logged spend moments and mood check-ins to minimum coverage.',
+    howComputed: 'Compares counts to a baseline.',
     relevance: 0.6,
     gap: {
       message:
         missingSpend > 0
-          ? `Need ${missingSpend} more spend moments to reach baseline coverage.`
+          ? `Need ${missingSpend} more spend moments to reach baseline.`
           : missingMood > 0
-            ? `Need ${missingMood} more mood check-ins to reach baseline coverage.`
+            ? `Need ${missingMood} more mood check-ins to reach baseline.`
             : 'You have baseline coverage. Keep logging to maintain it.',
       ctaLabel: missingSpend > 0 ? 'Log a spend moment' : 'Log a mood',
       ctaHref: missingSpend > 0 ? '/log' : '/log',

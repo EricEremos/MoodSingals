@@ -23,7 +23,7 @@ export function topTriggerTagsCard(context: InsightContext): InsightCardResult {
   const gap =
     totalTags < 5
       ? {
-          message: 'Add tags to 5 spend moments to surface your top triggers.',
+          message: 'Add tags to 5 spend moments to surface triggers.',
           ctaLabel: 'Log with tags',
           ctaHref: '/log',
         }
@@ -31,19 +31,19 @@ export function topTriggerTagsCard(context: InsightContext): InsightCardResult {
 
   return {
     id: 'top-trigger-tags',
-    title: 'Top Trigger Tags',
+    title: 'Top triggers',
     insight:
       labels.length > 0
-        ? `Most tagged moments: ${labels.join(', ')}.`
-        : 'No trigger tags yet.',
+        ? `Top tags: ${labels.join(', ')}.`
+        : 'No tags yet.',
     data: { tagCounts },
     vizSpec:
       labels.length > 0
         ? { type: 'bar', labels, values }
         : { type: 'bar', labels: ['Add tags'], values: [1] },
-    microAction: 'Add one tag to your next spend moment.',
+    microAction: 'Add one tag next time.',
     confidence,
-    howComputed: 'Counts the tags you add to spend moments.',
+    howComputed: 'Counts tags on spend moments.',
     relevance: 0.9,
     gap,
   }

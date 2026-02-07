@@ -23,7 +23,7 @@ export function impulseMomentsMapCard(context: InsightContext): InsightCardResul
   const gap =
     total < 3
       ? {
-          message: 'Need 3 high-urge moments with a negative mood to map patterns.',
+          message: 'Need 3 high-urge moments to map a pattern.',
           ctaLabel: 'Log a spend moment',
           ctaHref: '/log',
         }
@@ -31,19 +31,19 @@ export function impulseMomentsMapCard(context: InsightContext): InsightCardResul
 
   return {
     id: 'impulse-moments-map',
-    title: 'Impulse Moments Map',
+    title: 'Impulse moments',
     insight:
       total >= 3
-        ? `High-urge moments cluster in ${labels[0] || 'a few categories'}.`
-        : 'Not enough high-urge moments to map patterns yet.',
+        ? `High-urge moments show up most in ${labels[0] || 'a few categories'}.`
+        : 'No pattern yet.',
     data: { total, byCategory },
     vizSpec:
       labels.length > 0
         ? { type: 'bar', labels, values }
         : { type: 'bar', labels: ['No data'], values: [1] },
-    microAction: 'Tag the next high-urge spend to sharpen this map.',
+    microAction: 'Pause once before a high-urge spend.',
     confidence,
-    howComputed: 'Counts spend moments tagged as high urge with negative valence.',
+    howComputed: 'High-urge spends with low mood.',
     relevance: 0.95,
     gap,
   }

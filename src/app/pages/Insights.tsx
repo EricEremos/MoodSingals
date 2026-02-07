@@ -4,7 +4,6 @@ import InsightCard from '../../components/InsightCard'
 import SpendMomentQuickLog from '../../components/SpendMomentQuickLog'
 import { db, type MoodLog, type SpendMoment, type Transaction } from '../../data/db'
 import { computeInsights, confidenceScore, type InsightCardResult } from '../../data/insights'
-import { supportiveCopy } from '../../utils/copy'
 import { sameLocalDay } from '../../utils/dates'
 import { loadSampleData } from '../../data/sample'
 
@@ -63,7 +62,7 @@ export default function Insights() {
     if (!spendMoments.length && !moods.length && !transactions.length) {
       return {
         title: 'Start with a spend moment',
-        description: 'Log one quick spend moment or try demo data.',
+        description: 'Log one moment or try demo data.',
         primaryLabel: 'Log spend moment',
         primaryAction: 'quicklog',
         secondaryLabel: 'Try demo data',
@@ -73,7 +72,7 @@ export default function Insights() {
     if (reflectionDue) {
       return {
         title: 'Weekly reflection',
-        description: 'Take 3 minutes to review patterns.',
+        description: '3 minutes. Simple prompts.',
         primaryLabel: 'Open reflection',
         primaryAction: 'reflection',
         secondaryLabel: 'Log spend moment',
@@ -83,7 +82,7 @@ export default function Insights() {
     if (!hasSpendToday) {
       return {
         title: 'Log a spend moment',
-        description: 'One quick entry keeps the loop alive.',
+        description: 'Quick entry.',
         primaryLabel: 'Log spend moment',
         primaryAction: 'quicklog',
         secondaryLabel: 'Log mood',
@@ -93,7 +92,7 @@ export default function Insights() {
     if (!hasMoodToday) {
       return {
         title: 'Log today’s mood',
-        description: 'A 10-second mood check-in is enough.',
+        description: 'Quick mood check-in.',
         primaryLabel: 'Log mood',
         primaryAction: 'mood',
         secondaryLabel: 'Log spend moment',
@@ -102,7 +101,7 @@ export default function Insights() {
     }
     return {
       title: 'Review insights',
-      description: 'See what your last week is showing.',
+      description: 'Your week at a glance.',
       primaryLabel: 'View insights',
       primaryAction: 'insights',
       secondaryLabel: 'Log spend moment',
@@ -140,9 +139,8 @@ export default function Insights() {
       <div className="section-header">
         <div>
           <h1 className="page-title">Insights</h1>
-          <p className="section-subtitle">Local-first signals from daily spend and mood logs.</p>
+          <p className="section-subtitle">Your week at a glance.</p>
         </div>
-        <div className="tag">Local-only</div>
       </div>
 
       {status ? <p className="helper">{status}</p> : null}
@@ -151,12 +149,11 @@ export default function Insights() {
         <div className="card card-elevated">
           <div className="card-header">
             <div>
-              <h2 className="insight-title">Next best action</h2>
-              <p className="helper">{nextAction.description}</p>
+              <h2 className="insight-title">Next action</h2>
             </div>
-            <span className="pill">Today</span>
           </div>
           <h3 style={{ marginTop: 0 }}>{nextAction.title}</h3>
+          <p className="helper">{nextAction.description}</p>
           <div className="inline-list" style={{ marginTop: 12 }}>
             <button
               className="button button-primary"
@@ -177,28 +174,24 @@ export default function Insights() {
           <div className="card-header">
             <div>
               <h2 className="insight-title">Quick start</h2>
-              <p className="helper">Keep it simple.</p>
             </div>
           </div>
           <div className="stepper">
             <div className={`step ${spendMoments.length ? 'step-done' : ''}`}>
               <div>
                 <div className="step-title">1. Log a spend moment</div>
-                <div className="helper">Primary daily habit.</div>
               </div>
               <span className="step-status">{spendMoments.length ? 'Done' : 'Now'}</span>
             </div>
             <div className={`step ${moods.length ? 'step-done' : ''}`}>
               <div>
                 <div className="step-title">2. Log a mood</div>
-                <div className="helper">Adds context.</div>
               </div>
               <span className="step-status">{moods.length ? 'Done' : 'Next'}</span>
             </div>
             <div className={`step ${transactions.length ? 'step-done' : ''}`}>
               <div>
                 <div className="step-title">3. Import history</div>
-                <div className="helper">Optional.</div>
               </div>
               <span className="step-status">{transactions.length ? 'Done' : 'Optional'}</span>
             </div>
@@ -217,8 +210,7 @@ export default function Insights() {
       <div style={{ marginTop: 28 }} className="card">
         <div className="card-header">
           <div>
-            <h2 className="insight-title">Data status</h2>
-            <p className="helper">Stored on this device only.</p>
+            <h2 className="insight-title">Counts</h2>
           </div>
         </div>
         <div className="status-grid">
@@ -248,13 +240,12 @@ export default function Insights() {
           <div className="card-header">
             <div>
               <h2 className="insight-title">Weekly reflection</h2>
-              <p className="helper">3 minutes. No judgment.</p>
             </div>
           </div>
           <div className="grid">
-            <div className="helper">1) Which spend moments felt most intentional?</div>
-            <div className="helper">2) Where did urges show up most?</div>
-            <div className="helper">3) One small change for next week?</div>
+            <div className="helper">1) What felt worth it?</div>
+            <div className="helper">2) Where did urges show up?</div>
+            <div className="helper">3) One small change for next week.</div>
           </div>
           <div className="inline-list" style={{ marginTop: 12 }}>
             <button
@@ -277,7 +268,7 @@ export default function Insights() {
         <div className="section-header">
           <div>
             <h2 className="section-title">Insight cards</h2>
-            <p className="section-subtitle">Always actionable, even with low data.</p>
+            <p className="section-subtitle">Short, clear, and actionable.</p>
           </div>
         </div>
         <div className="card-feed">
@@ -285,9 +276,6 @@ export default function Insights() {
             <InsightCard key={card.id} card={card} />
           ))}
         </div>
-        <p className="helper" style={{ marginTop: 16 }}>
-          {supportiveCopy.privacyDisclaimer}
-        </p>
       </div>
 
       {showQuickLog ? (

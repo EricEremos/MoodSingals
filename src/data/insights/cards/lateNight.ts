@@ -20,7 +20,7 @@ export function lateNightLeakCard(context: InsightContext): InsightCardResult {
   const gap =
     total < 10
       ? {
-          message: 'Need 10 spend moments with timestamps to detect late-night patterns.',
+          message: 'Need 10 spend moments to spot late-night patterns.',
           ctaLabel: 'Log a spend moment',
           ctaHref: '/log',
         }
@@ -28,20 +28,20 @@ export function lateNightLeakCard(context: InsightContext): InsightCardResult {
 
   return {
     id: 'late-night-leak',
-    title: 'Late-night Leak',
+    title: 'Late-night spending',
     insight:
       total >= 10
         ? `${Math.round(share * 100)}% of spend moments happen late night.`
-        : 'Not enough time data yet.',
+        : 'Not enough data yet.',
     data: { total, lateNight: lateNight.length },
     vizSpec: {
       type: 'donut',
       labels: ['Late night', 'Other'],
       values: [lateNight.length, Math.max(total - lateNight.length, 0)],
     },
-    microAction: 'If late-night spends feel impulsive, set a simple pause rule.',
+    microAction: 'Pause once before a late-night spend.',
     confidence,
-    howComputed: 'Looks at spend moments logged between 10pm and 5am.',
+    howComputed: 'Spend moments logged between 10pm and 5am.',
     relevance: 0.8,
     gap,
   }

@@ -7,12 +7,17 @@ const SURFACE = '#1B2840'
 const TEXT_MUTED = '#AAB6C8'
 
 function Sparkline({ values }: { values: number[] }) {
+  const wrapRef = useRef<HTMLDivElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [fallback, setFallback] = useState(false)
+  const [size, setSize] = useState({ width: 0, height: 0 })
 
   useEffect(() => {
-    let chart: { destroy: () => void } | null = null
+    let chart: { destroy: () => void; setSize?: (size: { width: number; height: number }) => void } | null = null
     let mounted = true
+    const wrap = wrapRef.current
+
+    if (!wrap) return
 
     const render = async () => {
       if (!containerRef.current || values.length === 0) return
@@ -21,10 +26,12 @@ function Sparkline({ values }: { values: number[] }) {
         const x = Float64Array.from(values.map((_, i) => i))
         const y = Float64Array.from(values)
         const data = [x, y]
+        const width = wrap.clientWidth || 240
+        const height = wrap.clientHeight || 120
         chart = new uPlot(
           {
-            width: 220,
-            height: 70,
+            width,
+            height,
             axes: [
               { show: false },
               { show: false },
@@ -42,8 +49,21 @@ function Sparkline({ values }: { values: number[] }) {
 
     render()
 
+    const ro = new ResizeObserver(() => {
+      if (!wrap) return
+      const width = wrap.clientWidth
+      const height = wrap.clientHeight
+      if (width > 0 && height > 0) {
+        setSize({ width, height })
+        if (chart?.setSize) chart.setSize({ width, height })
+      }
+    })
+
+    ro.observe(wrap)
+
     return () => {
       mounted = false
+      ro.disconnect()
       if (chart) chart.destroy()
     }
   }, [values])
@@ -54,13 +74,22 @@ function Sparkline({ values }: { values: number[] }) {
       .map((v, i) => `${(i / Math.max(values.length - 1, 1)) * 100},${100 - (v / max) * 100}`)
       .join(' ')
     return (
-      <svg width="220" height="70" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <svg
+        width={size.width || 240}
+        height={size.height || 120}
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+      >
         <polyline fill="none" stroke={ACCENT} strokeWidth="2" points={points} />
       </svg>
     )
   }
 
-  return <div ref={containerRef} />
+  return (
+    <div ref={wrapRef} className="chart-wrap">
+      <div ref={containerRef} className="chart-inner" />
+    </div>
+  )
 }
 
 function BarChart({ labels, values }: { labels: string[]; values: number[] }) {

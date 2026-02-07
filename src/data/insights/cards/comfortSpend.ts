@@ -16,7 +16,7 @@ export function smallFrequentLeaksCard(context: InsightContext): InsightCardResu
   const gap =
     total < 12
       ? {
-          message: 'Need 12 spend moments to spot small frequent leaks.',
+          message: 'Need 12 spend moments to spot small leaks.',
           ctaLabel: 'Log a spend moment',
           ctaHref: '/log',
         }
@@ -24,20 +24,20 @@ export function smallFrequentLeaksCard(context: InsightContext): InsightCardResu
 
   return {
     id: 'small-frequent-leaks',
-    title: 'Small Frequent Leaks',
+    title: 'Small frequent leaks',
     insight:
       total >= 12
         ? `${smalls.length} of ${total} moments are under $15.`
-        : 'Not enough spend moments yet.',
+        : 'Not enough data yet.',
     data: { total, smalls: smalls.length },
     vizSpec: {
       type: 'donut',
       labels: ['Under $15', 'Other'],
       values: [smalls.length, Math.max(total - smalls.length, 0)],
     },
-    microAction: 'Pick one small leak to swap for a cheaper alternative.',
+    microAction: 'Swap one small leak.',
     confidence,
-    howComputed: 'Counts spend moments with amounts under $15.',
+    howComputed: 'Counts moments under $15.',
     relevance: 0.75,
     gap,
   }

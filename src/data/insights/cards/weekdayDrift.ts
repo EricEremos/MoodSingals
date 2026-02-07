@@ -25,13 +25,13 @@ export function replacementWinsCard(context: InsightContext): InsightCardResult 
 
   return {
     id: 'replacement-wins',
-    title: 'Replacement Wins',
-    insight: total ? `You logged ${total} replacement wins this period.` : 'No replacement wins yet.',
+    title: 'Wins',
+    insight: total ? `${total} wins logged.` : 'No wins yet.',
     data: { total },
     vizSpec: { type: 'spark', values: [0, Math.max(total, 1), total] },
-    microAction: 'Try one small swap this week and tag it.',
+    microAction: 'Tag a win when you resist.',
     confidence,
-    howComputed: 'Counts spend moments tagged as replace or swap.',
+    howComputed: 'Counts moments tagged replace or swap.',
     relevance: 0.7,
     gap,
   }
