@@ -6,17 +6,18 @@ import Settings from './pages/Settings'
 import Debug from './pages/Debug'
 import ResearchMode from './pages/ResearchMode'
 import CaseStudy from './pages/CaseStudy'
+import { copy } from '../utils/copy'
 
 export const navRoutes = [
-  { path: '/', label: 'Ledger', element: <Timeline /> },
-  { path: '/insights', label: 'Insights', element: <Insights /> },
-  { path: '/today', label: 'Today', element: <Today /> },
-  { path: '/data', label: 'Data', element: <Data /> },
-  { path: '/settings', label: 'Settings', element: <Settings /> },
+  { path: '/', label: copy.nav.insights, element: <Insights /> },
+  { path: '/today', label: copy.nav.today, element: <Today /> },
+  { path: '/timeline', label: copy.nav.timeline, element: <Timeline /> },
+  { path: '/data', label: copy.nav.data, element: <Data /> },
+  { path: '/settings', label: copy.nav.settings, element: <Settings /> },
 ]
 
 export const extraRoutes = [
-  { path: '/timeline', label: 'Timeline', element: <Timeline /> },
+  { path: '/insights', label: 'Insights', element: <Insights /> },
   { path: '/settings/debug', label: 'Debug', element: <Debug /> },
   { path: '/log', label: 'Log', element: <Today /> },
   { path: '/import', label: 'Import', element: <Data /> },

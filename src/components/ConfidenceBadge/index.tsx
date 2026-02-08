@@ -1,4 +1,5 @@
 import type { Confidence } from '../../data/insights/confidence'
+import { copy } from '../../utils/copy'
 
 export default function ConfidenceBadge({ confidence }: { confidence: Confidence }) {
   const level = confidence.level
@@ -8,7 +9,7 @@ export default function ConfidenceBadge({ confidence }: { confidence: Confidence
   return (
     <div
       className={className}
-      title={`Confidence: ${level}. ${confidence.reasons.join(', ') || 'Confidence score'}`}
+      title={copy.common.confidenceLevel[level]}
     >
       {level}
     </div>

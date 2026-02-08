@@ -6,6 +6,8 @@ import { browserTimeZone } from '../../utils/dates'
 import { sha256 } from '../../utils/hash'
 import { loadSampleData } from '../../data/sample'
 import { downloadTemplateCsv } from '../../utils/templateCsv'
+import InfoSheet from '../InfoSheet'
+import { copy } from '../../utils/copy'
 
 type WorkerResult =
   | {
@@ -41,8 +43,8 @@ const BATCH_SIZE = 750
 
 export default function CSVWizard({ onImported }: { onImported?: () => void }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const workerRef = useRef<Worker | null>(null)
   const [file, setFile] = useState<File | null>(null)
-  const [worker, setWorker] = useState<Worker | null>(null)
   const [headers, setHeaders] = useState<string[]>([])
   const [rows, setRows] = useState<string[][]>([])
   const [preview, setPreview] = useState<string[][]>([])
@@ -56,20 +58,24 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
   )
   const [error, setError] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
-  const [showHelp, setShowHelp] = useState(false)
   const [status, setStatus] = useState('')
 
   useEffect(() => {
     if (!file) return
-    const workerInstance = new Worker(
-      new URL('../../data/import/parse.worker.ts', import.meta.url),
-      { type: 'module' },
-    )
+
+    const workerInstance = new Worker(new URL('../../data/import/parse.worker.ts', import.meta.url), {
+      type: 'module',
+    })
+
+    workerRef.current?.terminate()
+    workerRef.current = workerInstance
+
     workerInstance.onmessage = (event: MessageEvent<WorkerResult>) => {
       const payload = event.data
       if (payload.type === 'progress') {
         setProgress(payload.percent)
         setRowCount(payload.rowCount)
+        return
       }
       if (payload.type === 'complete') {
         setHeaders(payload.headers)
@@ -78,16 +84,21 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
         setDelimiter(payload.delimiter)
         setRowCount(payload.rowCount)
         setParseMs(payload.parseMs)
+        setError(null)
         setMapping(guessMapping(payload.headers))
+        return
       }
-      if (payload.type === 'error') {
-        setError('This does not look like a CSV.')
+      setError(copy.data.importStatusError)
+    }
+
+    workerInstance.postMessage({ file })
+
+    return () => {
+      workerInstance.terminate()
+      if (workerRef.current === workerInstance) {
+        workerRef.current = null
       }
     }
-    workerInstance.postMessage({ file })
-    setWorker(workerInstance)
-
-    return () => workerInstance.terminate()
   }, [file])
 
   useEffect(() => {
@@ -99,6 +110,7 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
         return Number.parseFloat(String(row[idx] || '0'))
       })
       .filter((value) => !Number.isNaN(value))
+
     const negativeShare = negatives.filter((value) => value < 0).length / Math.max(negatives.length, 1)
     setSignConvention(negativeShare > 0.7 ? 'negative-outflow' : 'positive-outflow')
   }, [rows, headers, mapping.amount])
@@ -108,15 +120,15 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
   }, [mapping, importing, rows.length])
 
   const mappingStatus = useMemo(() => {
-    if (error) return 'This does not look like a CSV'
+    if (error) return copy.data.importStatusError
     if (!rows.length) return ''
-    if (!mapping.date || !mapping.amount) return 'Missing Date or Amount column'
-    return 'File looks valid'
+    if (!mapping.date || !mapping.amount) return copy.data.importStatusMissing
+    return copy.data.importStatusReady
   }, [error, rows.length, mapping.date, mapping.amount])
 
   const statusTone = useMemo(() => {
     if (!mappingStatus) return ''
-    if (mappingStatus === 'File looks valid') return 'status-ok'
+    if (mappingStatus === copy.data.importStatusReady) return 'status-ok'
     return 'status-warn'
   }, [mappingStatus])
 
@@ -124,18 +136,19 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
     if (!canImport || !file) return
     setImporting(true)
     setError(null)
+
     try {
       const importBatchId = await sha256(`${file.name}-${Date.now()}`)
-      const fileFingerprint = await sha256(
-        `${file.name}-${file.size}-${file.lastModified}`,
-      )
+      const fileFingerprint = await sha256(`${file.name}-${file.size}-${file.lastModified}`)
       const normalizeStart = performance.now()
+
       const normalizeResult = await normalizeRows(headers, rows, mapping, {
         timezone: browserTimeZone,
         negativesAreOutflow: signConvention === 'negative-outflow',
         importBatchId,
         defaultCategory: 'Uncategorized',
       })
+
       const normalizeEnd = performance.now()
 
       const timeUnknownPctCalc = normalizeResult.transactions.length
@@ -176,14 +189,16 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
         mapping_json: JSON.stringify(mapping),
         file_fingerprint: fileFingerprint,
       }
+
       await db.imports.add(importBatch)
+      setStatus(copy.data.importDone)
       onImported?.()
-      setStatus('Imported on this device.')
-    } catch (err) {
-      setError('Import failed. Please retry or check your mappings.')
+    } catch {
+      setError('Import failed. Check mapping and retry.')
     } finally {
       setImporting(false)
-      worker?.terminate()
+      workerRef.current?.terminate()
+      workerRef.current = null
     }
   }
 
@@ -191,36 +206,35 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
     <div className="card">
       <div className="section-header">
         <div>
-          <h2 className="section-title">Import transactions</h2>
-          <p className="section-subtitle">Optional history.</p>
+          <h3 className="section-title">Import transactions</h3>
         </div>
+        <InfoSheet title={copy.data.importInfoTitle}>
+          <ul className="sheet-list">
+            {copy.data.importInfoBody.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </InfoSheet>
       </div>
 
       <div className="inline-list" style={{ marginBottom: 12 }}>
-        <button
-          className="button button-primary"
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          Import transactions (CSV)
-        </button>
-        <button className="button button-ghost" type="button" onClick={() => setShowHelp(true)}>
-          Help me find the right file
+        <button className="button button-primary" type="button" onClick={() => fileInputRef.current?.click()}>
+          Import transactions
         </button>
         <button
           className="button"
           type="button"
           onClick={async () => {
-            setStatus('Loading sample data...')
+            setStatus('Loading demo...')
             await loadSampleData()
-            setStatus('Sample data loaded (not your real data).')
+            setStatus('Demo data loaded.')
             onImported?.()
           }}
         >
-          Try with sample data
+          {copy.data.loadDemo}
         </button>
         <button className="button button-muted" type="button" onClick={downloadTemplateCsv}>
-          Download template CSV
+          {copy.data.csvTemplate}
         </button>
       </div>
 
@@ -232,15 +246,15 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
         onChange={(event) => setFile(event.target.files?.[0] || null)}
       />
 
-      {progress > 0 && progress < 100 ? <p className="helper">Parsing... {progress}%</p> : null}
-      {error ? <p className="helper">{error}</p> : null}
-      {status ? <p className="helper">{status}</p> : null}
+      {progress > 0 && progress < 100 ? <p className="body-subtle">Parsing {progress}%</p> : null}
+      {error ? <p className="body-subtle">{error}</p> : null}
+      {status ? <p className="body-subtle">{status}</p> : null}
 
-      {headers.length > 0 ? (
-        <div style={{ marginTop: 20 }} className="grid grid-2">
+      {headers.length ? (
+        <div style={{ marginTop: 16 }} className="grid grid-2">
           {(
             [
-              ['date', 'Date/Datetime *'],
+              ['date', 'Date *'],
               ['amount', 'Amount *'],
               ['merchant', 'Merchant'],
               ['description', 'Description'],
@@ -248,8 +262,8 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
               ['currency', 'Currency'],
             ] as Array<[keyof ColumnMapping, string]>
           ).map(([key, label]) => (
-            <div key={key}>
-              <label className="helper">{label}</label>
+            <label key={key} className="field-block">
+              <span className="section-label">{label}</span>
               <select
                 className="select"
                 value={mapping[key] || ''}
@@ -267,39 +281,33 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
                   </option>
                 ))}
               </select>
-            </div>
+            </label>
           ))}
         </div>
       ) : null}
 
       {rows.length ? (
-        <div style={{ marginTop: 20 }}>
+        <div style={{ marginTop: 16 }}>
           <div className="inline-list">
-            <div className="tag">Delimiter: {delimiter}</div>
-            <div className="tag">Rows: {rowCount}</div>
-            <div className="tag">Sign: {signConvention}</div>
-            {mappingStatus ? (
-              <div className={statusTone}>
-                {mappingStatus === 'File looks valid' ? 'File looks valid ✅' : 'Needs mapping ⚠️'}
-              </div>
-            ) : null}
+            <div className="tag">Rows {rowCount}</div>
+            <div className="tag">Delimiter {delimiter}</div>
+            <div className="tag">Sign {signConvention}</div>
+            {mappingStatus ? <div className={statusTone}>{mappingStatus}</div> : null}
           </div>
-          {mappingStatus && mappingStatus !== 'File looks valid' ? (
-            <p className="helper" style={{ marginTop: 8 }}>
-              {mappingStatus}
-            </p>
-          ) : null}
+
           <div style={{ marginTop: 12 }}>
-            <label className="helper">Sign convention</label>
-            <div className="inline-list">
+            <span className="section-label">Sign convention</span>
+            <div className="inline-list" style={{ marginTop: 8 }}>
               <button
                 className={signConvention === 'negative-outflow' ? 'button button-primary' : 'button'}
+                type="button"
                 onClick={() => setSignConvention('negative-outflow')}
               >
                 Negative = Outflow
               </button>
               <button
                 className={signConvention === 'positive-outflow' ? 'button button-primary' : 'button'}
+                type="button"
                 onClick={() => setSignConvention('positive-outflow')}
               >
                 Positive = Outflow
@@ -310,9 +318,9 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
       ) : null}
 
       {preview.length ? (
-        <div style={{ marginTop: 20 }}>
-          <div className="helper">
-            Preview: {file?.name || 'Selected file'} · {rowCount} rows · {delimiter} delimiter
+        <div style={{ marginTop: 16 }}>
+          <div className="body-subtle">
+            Preview · {file?.name || 'Selected file'} · {rowCount} rows
           </div>
           <table className="table">
             <thead>
@@ -335,58 +343,11 @@ export default function CSVWizard({ onImported }: { onImported?: () => void }) {
         </div>
       ) : null}
 
-      <div style={{ marginTop: 20 }} className="inline-list">
-        <button className="button button-primary" disabled={!canImport} onClick={handleImport}>
+      <div style={{ marginTop: 16 }} className="inline-list">
+        <button className="button button-primary" type="button" disabled={!canImport} onClick={handleImport}>
           {importing ? 'Importing...' : 'Import now'}
         </button>
       </div>
-
-      {showHelp ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true">
-          <div className="modal">
-            <div className="modal-header">
-              <h3 className="insight-title">Find your transactions CSV</h3>
-              <button className="button button-ghost" onClick={() => setShowHelp(false)}>
-                Close
-              </button>
-            </div>
-          <div className="modal-content">
-            <div className="modal-block">
-              <div className="helper">Where to look</div>
-              <div className="inline-list">
-                <span className="pill">Bank/Card Website</span>
-                <span className="pill">Mobile Banking App</span>
-                <span className="pill">Budgeting App Export</span>
-              </div>
-            </div>
-            <div className="modal-block">
-              <div className="helper">Steps</div>
-              <p className="helper">
-                Transactions / Activity / Spending / Statements → Export/Download → CSV/Excel
-              </p>
-            </div>
-            <div className="modal-block">
-              <div className="helper">Recommended range</div>
-              <p className="helper">Last 60–90 days.</p>
-            </div>
-            <div className="modal-block">
-              <div className="helper">If PDF only</div>
-              <p className="helper">
-                PDFs aren’t supported. Export transactions. Avoid uploading statements to random sites.
-              </p>
-            </div>
-            <div className="modal-block">
-              <div className="helper">Excel → CSV</div>
-              <p className="helper">File → Save As / Download → CSV.</p>
-            </div>
-            <div className="modal-block">
-              <div className="helper">Privacy</div>
-              <p className="helper">Processed on this device. Not uploaded.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-      ) : null}
     </div>
   )
 }

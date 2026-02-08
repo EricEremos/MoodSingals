@@ -1,82 +1,70 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { IndexResult } from '../../data/indices/types'
 import ChartMini from '../Charts'
 import ConfidenceBadge from '../ConfidenceBadge'
+import InfoSheet from '../InfoSheet'
+import { copy } from '../../utils/copy'
 
 export default function InsightCard({ card }: { card: IndexResult }) {
-  const isLow = card.confidence.level === 'Low'
-  const confidenceHint = card.confidence.reasons.join(' • ') || 'Confidence score'
-  const [tab, setTab] = useState<'details' | 'evidence'>('details')
+  const confidenceReasons = card.confidence.reasons.join(' • ')
+  const confidenceHint =
+    copy.common.confidenceLevel[card.confidence.level] || confidenceReasons
 
   return (
-    <div className="card">
+    <article className="card">
       <div className="card-header">
-        <h3 className="insight-title">{card.spec.name}</h3>
+        <h3 className="card-title">{card.spec.name}</h3>
         <ConfidenceBadge confidence={card.confidence} />
       </div>
+
       <p className="insight-line">{card.insight}</p>
       <ChartMini spec={card.vizSpec} />
-      <div className="micro-action">
-        <strong>Next:</strong> {card.microAction}
-      </div>
-      {card.gap ? (
-        <div className="gap-panel">
-          <div className="helper">{card.gap.message}</div>
-          <Link className="button button-muted" to={card.gap.ctaHref}>
-            {card.gap.ctaLabel}
-          </Link>
+
+      <details className="collapse" style={{ marginTop: 12 }}>
+        <summary>{copy.common.details}</summary>
+        <div className="collapse-body">
+          <p className="body-subtle">Next: {card.microAction}</p>
+          {card.gap ? (
+            <div className="gap-panel">
+              <span className="body-subtle">{card.gap.message}</span>
+              <Link className="button button-muted" to={card.gap.ctaHref}>
+                {card.gap.ctaLabel}
+              </Link>
+            </div>
+          ) : null}
+          <InfoSheet title={copy.common.details}>
+            <ul className="sheet-list">
+              <li>Question: {card.spec.user_question}</li>
+              <li>Rule: {card.spec.matching_rule}</li>
+              <li>Formula: {card.spec.formula}</li>
+              <li>Minimum data: {card.spec.minimum_data}</li>
+              <li>Normalization: {card.spec.normalization}</li>
+            </ul>
+          </InfoSheet>
         </div>
-      ) : null}
-      {isLow ? (
-        <p className="helper" style={{ marginTop: 10 }}>
-          Low confidence: {confidenceHint}.
-        </p>
-      ) : null}
-      <div className="card-tabs">
-        <button
-          className={tab === 'details' ? 'tab-button tab-button-active' : 'tab-button'}
-          onClick={() => setTab('details')}
-          type="button"
-        >
-          Details
-        </button>
-        <button
-          className={tab === 'evidence' ? 'tab-button tab-button-active' : 'tab-button'}
-          onClick={() => setTab('evidence')}
-          type="button"
-        >
-          Evidence &amp; limits
-        </button>
-      </div>
-      {tab === 'details' ? (
-        <div className="tab-panel">
-          <p className="helper">{card.spec.user_question}</p>
-          {card.detailsNote ? <p className="helper">{card.detailsNote}</p> : null}
-          <div className="helper">Match: {card.spec.matching_rule}</div>
-          <div className="helper">Formula: {card.spec.formula}</div>
-          <div className="helper">Minimum data: {card.spec.minimum_data}</div>
-          <div className="helper">Confidence mapping: {card.spec.confidence.mapping_function}</div>
-          <div className="helper">Confidence: {card.spec.confidence.low} / {card.spec.confidence.medium} / {card.spec.confidence.high}</div>
-          <div className="helper">Normalization: {card.spec.normalization}</div>
+      </details>
+
+      <details className="collapse" style={{ marginTop: 12 }}>
+        <summary>{copy.common.evidence}</summary>
+        <div className="collapse-body">
+          <p className="body-subtle">{confidenceHint}</p>
+          {confidenceReasons && confidenceReasons !== confidenceHint ? (
+            <p className="body-subtle">{confidenceReasons}</p>
+          ) : null}
+          <InfoSheet title="Evidence & limits">
+            <ul className="sheet-list">
+              {card.spec.citations.map((item) => (
+                <li key={item.id}>
+                  [{item.id}] {item.authors} ({item.year}) {item.title}
+                </li>
+              ))}
+              {card.spec.limitations.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </InfoSheet>
         </div>
-      ) : (
-        <div className="tab-panel">
-          <ul className="helper">
-            {card.spec.citations.map((item) => (
-              <li key={item.id}>
-                [{item.id}] {item.authors} ({item.year}) - {item.title}
-              </li>
-            ))}
-            {card.spec.limitations.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-            {card.spec.validation_plan.map((item) => (
-              <li key={item}>Validation: {item}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
+      </details>
+    </article>
   )
 }

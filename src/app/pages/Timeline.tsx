@@ -1,272 +1,320 @@
 import { useEffect, useMemo, useState } from 'react'
-import { db, type MoodLog, type SpendMoment, type Transaction, type TxMoodAnnotation } from '../../data/db'
+import {
+  db,
+  type MoodLog,
+  type SpendMoment,
+  type Transaction,
+  type TxMoodAnnotation,
+} from '../../data/db'
 import { formatLocalDate } from '../../utils/dates'
 import { MOODS, TAGS } from '../../data/insights/moods'
 import MoodAttachModal from '../../components/TransactionMood/MoodAttachModal'
 import BatchTagFlow from '../../components/TransactionMood/BatchTagFlow'
 import MoodPill from '../../components/TransactionMood/MoodPill'
+import InfoSheet from '../../components/InfoSheet'
+import { copy } from '../../utils/copy'
 
-type TimelineItem =
-  | { type: 'Spend'; when: string; amount: number; category: string; mood: string; tags: string[] }
-  | { type: 'Mood'; when: string; mood: string; note?: string }
-  | { type: 'Transaction'; id: string; when: string; amount: number; merchant: string; category: string; description: string }
+type TimelineType = 'Mood' | 'Spend' | 'Transaction'
+
+type TimelineItem = {
+  id: string
+  type: TimelineType
+  when: string
+  title: string
+  subtitle: string
+  category?: string
+  amount?: number
+  moodLabel?: string
+  tags?: string[]
+  transactionId?: string
+}
 
 export default function Timeline() {
   const [spendMoments, setSpendMoments] = useState<SpendMoment[]>([])
   const [moods, setMoods] = useState<MoodLog[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [annotations, setAnnotations] = useState<TxMoodAnnotation[]>([])
+  const [showFilters, setShowFilters] = useState(false)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [typeFilter, setTypeFilter] = useState<'all' | TimelineType>('all')
   const [category, setCategory] = useState('')
   const [mood, setMood] = useState('')
   const [tag, setTag] = useState('')
-  const [urge, setUrge] = useState('')
   const [activeTx, setActiveTx] = useState<Transaction | null>(null)
   const [showBatch, setShowBatch] = useState(false)
 
+  const refresh = async () => {
+    const [spends, moodLogs, tx, ann] = await Promise.all([
+      db.spend_moments.orderBy('created_at').reverse().toArray(),
+      db.mood_logs.orderBy('occurred_at').reverse().toArray(),
+      db.transactions.orderBy('occurred_at').reverse().toArray(),
+      db.tx_mood_annotations.toArray(),
+    ])
+    setSpendMoments(spends)
+    setMoods(moodLogs)
+    setTransactions(tx)
+    setAnnotations(ann)
+  }
+
   useEffect(() => {
-    const load = async () => {
-      const [spends, moodLogs, tx, ann] = await Promise.all([
-        db.spend_moments.orderBy('created_at').reverse().toArray(),
-        db.mood_logs.orderBy('occurred_at').reverse().toArray(),
-        db.transactions.orderBy('occurred_at').reverse().toArray(),
-        db.tx_mood_annotations.toArray(),
-      ])
-      setSpendMoments(spends)
-      setMoods(moodLogs)
-      setTransactions(tx)
-      setAnnotations(ann)
-    }
-    load()
+    refresh()
   }, [])
 
   const annotationLookup = useMemo(() => {
     const map: Record<string, TxMoodAnnotation> = {}
-    annotations.forEach((ann) => {
+    for (const ann of annotations) {
       map[ann.transaction_id] = ann
-    })
+    }
     return map
   }, [annotations])
 
+  const categories = useMemo(() => {
+    const values = new Set<string>()
+    for (const spend of spendMoments) values.add(spend.category)
+    for (const tx of transactions) values.add(tx.category)
+    return Array.from(values).sort((a, b) => a.localeCompare(b))
+  }, [spendMoments, transactions])
+
   const items = useMemo<TimelineItem[]>(() => {
-    const spendItems: TimelineItem[] = spendMoments.map((moment) => ({
-      type: 'Spend',
-      when: moment.created_at,
-      amount: moment.amount,
-      category: moment.category,
-      mood: moment.mood_label,
-      tags: moment.tags,
-    }))
-    const moodItems: TimelineItem[] = moods.map((mood) => ({
+    const moodItems: TimelineItem[] = moods.map((entry) => ({
+      id: `mood-${entry.id}`,
       type: 'Mood',
-      when: mood.occurred_at,
-      mood: mood.mood_label,
-      note: mood.note,
+      when: entry.occurred_at,
+      title: `${entry.mood_emoji} ${entry.mood_label}`,
+      subtitle: entry.note || 'Mood check-in',
+      moodLabel: entry.mood_label,
+      tags: entry.tags,
     }))
-    const txItems: TimelineItem[] = transactions.map((tx) => ({
-      type: 'Transaction',
-      id: tx.id,
-      when: tx.occurred_at,
-      amount: tx.outflow > 0 ? -tx.outflow : tx.inflow,
-      merchant: tx.merchant,
-      category: tx.category,
-      description: tx.description,
+
+    const spendItems: TimelineItem[] = spendMoments.map((entry) => ({
+      id: `spend-${entry.id}`,
+      type: 'Spend',
+      when: entry.created_at,
+      title: entry.category,
+      subtitle: entry.note || `Urge ${entry.urge_level + 1}/3`,
+      category: entry.category,
+      amount: -Math.abs(entry.amount),
+      moodLabel: entry.mood_label,
+      tags: entry.tags,
     }))
-    const all = [...spendItems, ...moodItems, ...txItems]
-    const start = startDate ? new Date(startDate).getTime() : 0
-    const end = endDate ? new Date(endDate).getTime() : Number.POSITIVE_INFINITY
+
+    const transactionItems: TimelineItem[] = transactions.map((entry) => {
+      const annotation = annotationLookup[entry.id]
+      const amount = entry.outflow > 0 ? -entry.outflow : entry.inflow
+      return {
+        id: `tx-${entry.id}`,
+        type: 'Transaction',
+        when: entry.occurred_at,
+        title: entry.merchant || entry.description || 'Transaction',
+        subtitle: entry.category,
+        category: entry.category,
+        amount,
+        moodLabel: annotation?.mood_label,
+        tags: annotation?.tags,
+        transactionId: entry.id,
+      }
+    })
+
+    const all = [...moodItems, ...spendItems, ...transactionItems]
+    const start = startDate ? new Date(startDate).getTime() : Number.NEGATIVE_INFINITY
+    const end = endDate ? new Date(endDate).getTime() + 86_399_000 : Number.POSITIVE_INFINITY
 
     return all
       .filter((item) => {
-        const time = new Date(item.when).getTime()
-        if (time < start || time > end) return false
-        if (item.type === 'Spend') {
-          if (category && item.category !== category) return false
-          if (mood && item.mood !== mood) return false
-          if (tag && !item.tags.includes(tag)) return false
-          if (urge) {
-            const moment = spendMoments.find((s) => s.created_at === item.when)
-            if (!moment || String(moment.urge_level) !== urge) return false
-          }
-        }
-        if (item.type === 'Mood') {
-          if (mood && item.mood !== mood) return false
-          if (tag && !(moods.find((m) => m.occurred_at === item.when)?.tags || []).includes(tag))
-            return false
-        }
-        if (item.type === 'Transaction') {
-          if (category && item.category !== category) return false
-          if (mood) {
-            const ann = annotationLookup[item.id]
-            if (!ann || ann.mood_label !== mood) return false
-          }
-        }
+        const timestamp = new Date(item.when).getTime()
+        if (timestamp < start || timestamp > end) return false
+        if (typeFilter !== 'all' && item.type !== typeFilter) return false
+        if (category && item.category !== category) return false
+        if (mood && item.moodLabel !== mood) return false
+        if (tag && !(item.tags || []).includes(tag)) return false
         return true
       })
       .sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime())
-  }, [spendMoments, moods, transactions, annotations, startDate, endDate, category, mood, tag, urge, annotationLookup])
+  }, [moods, spendMoments, transactions, annotationLookup, startDate, endDate, typeFilter, category, mood, tag])
 
-  const annotationMap = annotationLookup
-  const untagged = transactions.filter((tx) => !annotationLookup[tx.id])
+  const untaggedTransactions = useMemo(
+    () => transactions.filter((tx) => !annotationLookup[tx.id]),
+    [transactions, annotationLookup],
+  )
 
-  const toggleWorthIt = async (tx: Transaction) => {
-    const next = !tx.worth_it
-    await db.transactions.update(tx.id, { worth_it: next })
-    setTransactions((prev) =>
-      prev.map((item) => (item.id === tx.id ? { ...item, worth_it: next } : item)),
-    )
+  const resetFilters = () => {
+    setStartDate('')
+    setEndDate('')
+    setTypeFilter('all')
+    setCategory('')
+    setMood('')
+    setTag('')
   }
 
   return (
-    <div>
+    <div className="page-stack">
       <div className="section-header">
         <div>
-          <h1 className="page-title">Ledger</h1>
-          <p className="section-subtitle">Your spending ledger with mood notes.</p>
+          <h2 className="page-title">{copy.timeline.title}</h2>
+        </div>
+        <div className="inline-list">
+          <InfoSheet title={copy.timeline.listInfoTitle}>
+            <ul className="sheet-list">
+              {copy.timeline.listInfoBody.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </InfoSheet>
+          <button className="button button-primary" type="button" onClick={() => setShowFilters(true)}>
+            {copy.timeline.filterAction}
+          </button>
         </div>
       </div>
 
-      <div className="card">
-        <div className="inline-list" style={{ marginBottom: 12 }}>
-          {untagged.length ? (
-            <button className="button button-primary" onClick={() => setShowBatch(true)}>
-              Tag 5 purchases
-            </button>
-          ) : null}
+      {untaggedTransactions.length ? (
+        <div className="card card-elevated">
+          <button className="button button-primary" type="button" onClick={() => setShowBatch(true)}>
+            {copy.timeline.tagAction}
+          </button>
         </div>
-        <div className="inline-list" style={{ marginBottom: 12 }}>
-          <input
-            className="input"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-          <input
-            className="input"
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-          <select className="select" value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="">Category</option>
-            {Array.from(new Set(spendMoments.map((m) => m.category))).map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-          <select className="select" value={mood} onChange={(e) => setMood(e.target.value)}>
-            <option value="">Mood</option>
-            {MOODS.map((m) => (
-              <option key={m.label} value={m.label}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-          <select className="select" value={tag} onChange={(e) => setTag(e.target.value)}>
-            <option value="">Tag</option>
-            {TAGS.map((t) => (
-              <option key={t} value={t}>
-                {t.replace(/-/g, ' ')}
-              </option>
-            ))}
-          </select>
-          <select className="select" value={urge} onChange={(e) => setUrge(e.target.value)}>
-            <option value="">Urge</option>
-            <option value="0">Low</option>
-            <option value="1">Medium</option>
-            <option value="2">High</option>
-          </select>
+      ) : null}
+
+      {items.length ? (
+        <div className="timeline-list">
+          {items.slice(0, 120).map((item) => (
+            <article key={item.id} className="timeline-item card">
+              <div className="timeline-meta">
+                <span className="tag">{item.type}</span>
+                <span className="body-subtle">{formatLocalDate(item.when)}</span>
+              </div>
+              <div className="timeline-main">
+                <h3 className="card-title">{item.title}</h3>
+                <p className="body-subtle">{item.subtitle}</p>
+                {item.moodLabel ? <MoodPill label={item.moodLabel} tags={item.tags} /> : null}
+              </div>
+              <div className="timeline-actions">
+                {item.transactionId ? (
+                  <button
+                    className={annotationLookup[item.transactionId] ? 'button button-muted' : 'button'}
+                    type="button"
+                    onClick={() => {
+                      const selected = transactions.find((tx) => tx.id === item.transactionId)
+                      if (selected) setActiveTx(selected)
+                    }}
+                  >
+                    {annotationLookup[item.transactionId] ? 'Edit mood' : '+ Mood'}
+                  </button>
+                ) : null}
+                {item.amount !== undefined ? (
+                  <strong className="amount-value">
+                    {item.amount < 0 ? '-' : '+'}${Math.abs(item.amount).toFixed(2)}
+                  </strong>
+                ) : null}
+              </div>
+            </article>
+          ))}
         </div>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Type</th>
-              <th>Date</th>
-              <th>Details</th>
-              <th>Mood</th>
-              <th>Worth‑it</th>
-              <th>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.slice(0, 75).map((item, idx) => (
-              <tr key={`${item.type}-${item.when}-${idx}`}>
-                <td>{item.type}</td>
-                <td>{formatLocalDate(item.when)}</td>
-                <td>
-                  {item.type === 'Spend'
-                    ? `${item.category} · ${item.mood}${item.tags.length ? ` · ${item.tags.join(', ')}` : ''}`
-                    : item.type === 'Mood'
-                      ? `${item.mood}${item.note ? ` · ${item.note}` : ''}`
-                      : `${item.merchant || item.description} · ${item.category}`}
-                </td>
-                <td>
-                  {item.type === 'Transaction' ? (
-                    annotationMap[item.id] ? (
-                      <div className="inline-list">
-                        <MoodPill
-                          label={annotationMap[item.id].mood_label}
-                          tags={annotationMap[item.id].tags}
-                        />
-                        <button className="button button-ghost" onClick={() => {
-                          const tx = transactions.find((t) => t.id === item.id)
-                          if (tx) setActiveTx(tx)
-                        }}>
-                          Edit
-                        </button>
-                      </div>
-                    ) : (
-                      <button className="button button-muted" onClick={() => {
-                        const tx = transactions.find((t) => t.id === item.id)
-                        if (tx) setActiveTx(tx)
-                      }}>
-                        + Mood
-                      </button>
-                    )
-                  ) : item.type === 'Mood' ? (
-                    <MoodPill label={item.mood} />
-                  ) : (
-                    <MoodPill label={item.mood} tags={item.tags} />
-                  )}
-                </td>
-                <td>
-                  {item.type === 'Transaction' ? (
-                    <button
-                      className={transactions.find((t) => t.id === item.id)?.worth_it ? 'button button-primary' : 'button'}
-                      onClick={() => {
-                        const tx = transactions.find((t) => t.id === item.id)
-                        if (tx) toggleWorthIt(tx)
-                      }}
-                    >
-                      {transactions.find((t) => t.id === item.id)?.worth_it ? 'Yes' : 'No'}
-                    </button>
-                  ) : (
-                    '-'
-                  )}
-                </td>
-                <td>
-                  {item.type === 'Mood'
-                    ? '-'
-                    : item.amount
-                      ? `$${Math.abs(item.amount).toFixed(2)}`
-                      : '-'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      ) : (
+        <div className="empty-state">
+          <p className="card-title">{copy.timeline.emptyTitle}</p>
+          <p className="body-subtle">{copy.timeline.emptySubtitle}</p>
+        </div>
+      )}
+
+      {showFilters ? (
+        <div className="sheet-backdrop" onClick={() => setShowFilters(false)}>
+          <section className="info-sheet filter-sheet" onClick={(event) => event.stopPropagation()}>
+            <div className="info-sheet-header">
+              <h3 className="card-title">{copy.timeline.filterTitle}</h3>
+              <button className="button button-ghost" type="button" onClick={() => setShowFilters(false)}>
+                Close
+              </button>
+            </div>
+            <div className="filter-grid">
+              <label className="field-block">
+                <span className="section-label">From</span>
+                <input
+                  className="input"
+                  type="date"
+                  value={startDate}
+                  onChange={(event) => setStartDate(event.target.value)}
+                />
+              </label>
+              <label className="field-block">
+                <span className="section-label">To</span>
+                <input
+                  className="input"
+                  type="date"
+                  value={endDate}
+                  onChange={(event) => setEndDate(event.target.value)}
+                />
+              </label>
+              <label className="field-block">
+                <span className="section-label">Type</span>
+                <select
+                  className="select"
+                  value={typeFilter}
+                  onChange={(event) => setTypeFilter(event.target.value as 'all' | TimelineType)}
+                >
+                  <option value="all">{copy.timeline.typeAll}</option>
+                  <option value="Mood">{copy.timeline.typeMood}</option>
+                  <option value="Spend">{copy.timeline.typeSpend}</option>
+                  <option value="Transaction">{copy.timeline.typeTransaction}</option>
+                </select>
+              </label>
+              <label className="field-block">
+                <span className="section-label">Category</span>
+                <select
+                  className="select"
+                  value={category}
+                  onChange={(event) => setCategory(event.target.value)}
+                >
+                  <option value="">All</option>
+                  {categories.map((value) => (
+                    <option key={value} value={value}>
+                      {value}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field-block">
+                <span className="section-label">Mood</span>
+                <select className="select" value={mood} onChange={(event) => setMood(event.target.value)}>
+                  <option value="">All</option>
+                  {MOODS.map((value) => (
+                    <option key={value.label} value={value.label}>
+                      {value.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field-block">
+                <span className="section-label">Tag</span>
+                <select className="select" value={tag} onChange={(event) => setTag(event.target.value)}>
+                  <option value="">All</option>
+                  {TAGS.map((value) => (
+                    <option key={value} value={value}>
+                      {value.replace(/-/g, ' ')}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="inline-list" style={{ marginTop: 16 }}>
+              <button className="button" type="button" onClick={resetFilters}>
+                {copy.timeline.resetFilters}
+              </button>
+              <button className="button button-primary" type="button" onClick={() => setShowFilters(false)}>
+                Apply
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {activeTx ? (
         <MoodAttachModal
           transaction={activeTx}
-          existing={annotationMap[activeTx.id]}
+          existing={annotationLookup[activeTx.id]}
           onClose={() => setActiveTx(null)}
           onSaved={async () => {
-            const ann = await db.tx_mood_annotations.toArray()
-            setAnnotations(ann)
+            await refresh()
             setActiveTx(null)
           }}
         />
@@ -275,11 +323,10 @@ export default function Timeline() {
       {showBatch ? (
         <BatchTagFlow
           transactions={transactions}
-          existing={annotationMap}
+          existing={annotationLookup}
           onClose={() => setShowBatch(false)}
           onDone={async () => {
-            const ann = await db.tx_mood_annotations.toArray()
-            setAnnotations(ann)
+            await refresh()
             setShowBatch(false)
           }}
         />
