@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { db } from '../../data/db'
 import { copy } from '../../utils/copy'
-import { ENABLE_SYNC } from '../../config/flags'
 import { exportJsonSnapshot, importJsonSnapshot } from '../../data/transfer/json'
 import { exportCsvSnapshots } from '../../data/transfer/csv'
-import { clearOnboardingSuppression } from '../../utils/onboarding'
+import { clearOnboardingSuppression, requestOnboardingGuideOpen } from '../../utils/onboarding'
 
 type Counts = {
   imports: number
@@ -23,7 +22,6 @@ const INITIAL_COUNTS: Counts = {
 export default function Settings() {
   const [counts, setCounts] = useState<Counts>(INITIAL_COUNTS)
   const [status, setStatus] = useState('')
-  const [syncStatus, setSyncStatus] = useState('')
   const jsonInputRef = useRef<HTMLInputElement | null>(null)
 
   const refreshCounts = async () => {
@@ -68,16 +66,11 @@ export default function Settings() {
     }
   }
 
-  const onProviderClick = (provider: string) => {
-    setSyncStatus(`${provider} auth placeholder.`)
-  }
-
   return (
     <div className="page-stack">
       <div className="section-header">
         <div>
           <h2 className="page-title">{copy.settings.title}</h2>
-          <p className="page-subtitle">{copy.settings.subtitle}</p>
         </div>
       </div>
 
@@ -106,7 +99,6 @@ export default function Settings() {
 
         <section className="card">
           <h3 className="card-title">{copy.settings.privacyTitle}</h3>
-          <p className="body-subtle">{copy.settings.privacySubtitle}</p>
           <div className="inline-list" style={{ marginTop: 12 }}>
             <button
               className="button button-primary"
@@ -149,48 +141,23 @@ export default function Settings() {
 
       <section className="card" style={{ marginTop: 16 }}>
         <h3 className="card-title">{copy.settings.accountTitle}</h3>
-        <p className="body-subtle">{copy.settings.accountSubtitle}</p>
-        <div className="status-chip" style={{ marginTop: 10 }}>{copy.settings.localMode}</div>
-
-        {!ENABLE_SYNC ? <p className="body-subtle">{copy.common.syncOptional}</p> : null}
-
-        <div className="inline-list" style={{ marginTop: 12 }}>
-          <button
-            className="button button-primary"
-            type="button"
-            disabled={!ENABLE_SYNC}
-            onClick={() => onProviderClick('Google')}
-          >
-            {copy.settings.providerGoogle}
-          </button>
-          <button
-            className="button"
-            type="button"
-            disabled={!ENABLE_SYNC}
-            onClick={() => onProviderClick('Apple')}
-          >
-            {copy.settings.providerApple}
-          </button>
-          <button
-            className="button"
-            type="button"
-            disabled={!ENABLE_SYNC}
-            onClick={() => onProviderClick('Kakao')}
-          >
-            {copy.settings.providerKakao}
-          </button>
-          <button className="button button-muted" type="button" disabled={!ENABLE_SYNC}>
-            {copy.settings.signInLabel}
-          </button>
+        <div className="metric-list" style={{ marginTop: 12 }}>
+          <p className="body-subtle">{copy.settings.accountLineOne}</p>
+          <p className="body-subtle">{copy.settings.accountLineTwo}</p>
+          <p className="body-subtle">{copy.settings.accountLineThree}</p>
         </div>
-
-        <p className="body-subtle">{ENABLE_SYNC ? copy.settings.syncStatusOn : copy.settings.syncStatusOff}</p>
-        {syncStatus ? <p className="status-text">{syncStatus}</p> : null}
       </section>
 
       <section className="card" style={{ marginTop: 16 }}>
         <h3 className="card-title">{copy.settings.tutorialTitle}</h3>
         <div className="inline-list" style={{ marginTop: 12 }}>
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={requestOnboardingGuideOpen}
+          >
+            {copy.settings.openHelp}
+          </button>
           <button
             className="button button-muted"
             type="button"

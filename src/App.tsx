@@ -4,7 +4,11 @@ import { allRoutes, navRoutes } from './app/routes'
 import InfoSheet from './components/InfoSheet'
 import OnboardingGuideModal from './components/OnboardingGuideModal'
 import { copy } from './utils/copy'
-import { shouldAutoShowOnboarding, suppressOnboardingFor30Days } from './utils/onboarding'
+import {
+  ONBOARDING_OPEN_EVENT,
+  shouldAutoShowOnboarding,
+  suppressOnboardingFor30Days,
+} from './utils/onboarding'
 
 const navItems = navRoutes
 
@@ -19,6 +23,14 @@ function AppLayout() {
     setShowOnboarding(shouldAutoShowOnboarding())
   }, [])
 
+  useEffect(() => {
+    const openGuide = () => setShowOnboarding(true)
+    window.addEventListener(ONBOARDING_OPEN_EVENT, openGuide)
+    return () => {
+      window.removeEventListener(ONBOARDING_OPEN_EVENT, openGuide)
+    }
+  }, [])
+
   return (
     <div className="app-shell">
       <header className="top-app-bar">
@@ -28,6 +40,9 @@ function AppLayout() {
           <p className="body-subtle">{copy.app.subtitle}</p>
         </div>
         <div className="inline-list">
+          <button className="button" type="button" onClick={() => setShowOnboarding(true)}>
+            {copy.app.helpAction}
+          </button>
           <span className="status-chip">Local-only</span>
           <InfoSheet title={copy.app.privacySheetTitle}>
             <ul className="sheet-list">

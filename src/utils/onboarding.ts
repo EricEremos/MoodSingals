@@ -1,4 +1,5 @@
 export const ONBOARDING_SUPPRESSED_UNTIL_KEY = 'onboarding_suppressed_until'
+export const ONBOARDING_OPEN_EVENT = 'moodsignals:open-onboarding'
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
 function getSuppressedUntilMs(): number | null {
@@ -22,4 +23,8 @@ export function suppressOnboardingFor30Days(now = Date.now()) {
 
 export function clearOnboardingSuppression() {
   localStorage.removeItem(ONBOARDING_SUPPRESSED_UNTIL_KEY)
+}
+
+export function requestOnboardingGuideOpen() {
+  window.dispatchEvent(new Event(ONBOARDING_OPEN_EVENT))
 }
