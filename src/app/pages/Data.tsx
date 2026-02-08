@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { db, type ImportBatch } from '../../data/db'
 import CSVWizard from '../../components/CSVWizard'
+import MoodTagProgress from '../../components/TransactionMood/MoodTagProgress'
 
 export default function Data() {
   const [imports, setImports] = useState<ImportBatch[]>([])
@@ -33,18 +34,10 @@ export default function Data() {
       <div className="section-header">
         <div>
           <h1 className="page-title">Data</h1>
-          <p className="section-subtitle">Import transactions (optional).</p>
+          <p className="section-subtitle">Import ledger rows from CSV.</p>
         </div>
       </div>
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="inline-list">
-          <div className="helper">Mood‑tagged purchases: {taggedCount}</div>
-          <div className="helper">Tag 5 to unlock stronger insights.</div>
-          <a className="button button-muted" href="/timeline">
-            Tag purchases
-          </a>
-        </div>
-      </div>
+      <MoodTagProgress taggedCount={taggedCount} />
       <CSVWizard />
 
       <div className="card" style={{ marginTop: 20 }}>

@@ -9,6 +9,7 @@ import { sameLocalDay } from '../../utils/dates'
 import { loadSampleData } from '../../data/sample'
 import { getDailyStreak } from '../../utils/streak'
 import { supportiveCopy } from '../../utils/copy'
+import MoodTagProgress from '../../components/TransactionMood/MoodTagProgress'
 
 export default function Insights() {
   const [spendMoments, setSpendMoments] = useState<SpendMoment[]>([])
@@ -96,7 +97,7 @@ export default function Insights() {
       <div className="section-header">
         <div>
           <h1 className="page-title">Insights</h1>
-          <p className="section-subtitle">Overview.</p>
+          <p className="section-subtitle">Patterns from your ledger.</p>
         </div>
         <div className="inline-list">
           <span className="pill">Streak {getDailyStreak()}d</span>
@@ -105,6 +106,7 @@ export default function Insights() {
       </div>
 
       {status ? <p className="helper">{status}</p> : null}
+      <MoodTagProgress taggedCount={taggedCount} />
 
       <div className="grid grid-2">
         <div className="card card-elevated">
@@ -117,17 +119,17 @@ export default function Insights() {
             <button className="button button-primary" onClick={() => runAction('demo')}>
               Try demo data
             </button>
-            <Link to="/today" className="button">
-              Start logging
+            <Link to="/" className="button">
+              Open ledger
             </Link>
             <Link to="/data" className="button button-muted">
               Import (optional)
             </Link>
           </div>
           <ul className="checklist">
-            <li className={hasMoodToday ? 'done' : ''}>Log a mood</li>
-            <li className={hasSpendToday ? 'done' : ''}>Log a spend moment</li>
-            <li className={hasImport ? 'done' : ''}>Import history (optional)</li>
+            <li className={hasMoodToday ? 'done' : ''}>Add a mood note</li>
+            <li className={hasSpendToday ? 'done' : ''}>Add a spend row</li>
+            <li className={hasImport ? 'done' : ''}>Import ledger rows (optional)</li>
             <li className="done">View insights</li>
           </ul>
           <p className="helper" style={{ marginTop: 8 }}>

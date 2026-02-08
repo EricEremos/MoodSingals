@@ -10,7 +10,7 @@ function App() {
         <header className="top-nav">
           <div className="brand">
             <span className="brand-mark">MoodSignals</span>
-            <span className="brand-tag">See how moods shape spending — without judgment.</span>
+            <span className="brand-tag">Spending ledger with mood notes. Pattern lens only.</span>
           </div>
           <div className="inline-list" />
           <nav className="nav-links">

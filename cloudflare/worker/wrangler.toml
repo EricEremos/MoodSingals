@@ -1,0 +1,14 @@
+name = "moodsignals-sync-worker"
+main = "src/index.ts"
+compatibility_date = "2026-02-08"
+
+[vars]
+RP_ID = "localhost"
+RP_NAME = "MoodSignals"
+ORIGIN = "http://localhost:5173"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "moodsignals_sync"
+database_id = "replace-with-your-d1-id"
+migrations_dir = "migrations"

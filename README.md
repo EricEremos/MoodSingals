@@ -1,76 +1,43 @@
-# MoodSignals — Emotion-Based Budget Tracker (Local-First)
+# MoodSignals — Ledger + Mood Notes
 
-Local-first analytics app for understanding the chain of **Emotion → Spend → Outcome Proxy** using your own CSV data and quick mood check-ins. All parsing, storage, and insights run **entirely in the browser**. No backend. No accounts. No data leaves your device.
+MoodSignals is a local-first spending ledger where users can attach fast mood notes to purchases. Insights are descriptive pattern signals, not diagnosis.
 
-## Why Local-First
-- **Privacy-first:** CSV data never leaves the browser.
-- **Offline-capable:** Works as a static app on Cloudflare Pages.
-- **Low-ops:** No backend infrastructure required.
+## Product Model
+- Default surface: **Ledger** (`/`) with transaction rows + optional mood notes.
+- Mood linkage:
+  - `DIRECT`: manual mood tag on transaction.
+  - `INFERRED`: nearest mood in `[-2h, +6h]`.
+  - `UNLINKED`: no link.
+- Internal valence/arousal is stored silently; UI stays plain language.
 
-## Architecture (MVP)
-- **Cloudflare Pages + React (Vite) + TypeScript**
-- **IndexedDB via Dexie** for local storage
-- **CSV parsing in Web Worker via PapaParse** (no UI freeze)
-- **Compute in browser**, lazy-loaded charts
+## Stack
+- Frontend: React + TypeScript + Vite on Cloudflare Pages
+- Local data: IndexedDB via Dexie
+- Optional sync backend: Cloudflare Workers + D1
+- Optional encrypted sync: client-side AES-GCM via WebCrypto (passphrase-derived key)
 
-## Core MVP Constraints
-- CSV upload only (no bank APIs)
-- 8 Insight Cards with confidence + explanation
-- Mood logging <10 seconds, 1–3 check-ins/day
-- Mood tags on imported transactions (fast, optional)
-- Privacy controls: delete/export, sensitive-data disclaimers
-- Static deploy on Cloudflare Pages (no backend)
+## Index Standard v1
+All Insight Cards use `IndexSpec` with runtime validation (`src/data/indices/types.ts`) and include:
+- id, name, user_question, construct
+- primary_inputs, matching_rule, formula, units
+- normalization (within-user by default), minimum_data
+- confidence mapping function with low/medium/high
+- limitations, citations, validation_plan, change_log
 
-## CSV Import Pipeline
-- Runs in **Web Worker** with **chunked parsing**
-- **Progress updates** back to UI
-- Normalize to canonical schema
-- **IndexedDB writes in chunks** (default 750 rows)
-- Error states and recovery actions in wizard
+Supporting files:
+- Evidence library: `src/data/indices/evidence.ts`
+- Spec registry + runtime validation: `src/data/indices/specs/index.ts`
+- Markdown renderer: `src/data/indices/markdown.ts`
 
-### Mapping Wizard V1
-- Upload CSV → preview 20 rows
-- Map columns: date/datetime, amount, merchant, description, category (optional), currency (optional)
-- Validation: date parse failures count, amount parse failures count
-- Heuristics:
-  - Detect delimiter
-  - Detect sign convention (if >70% negative, treat negative as outflow; toggleable)
-  - Default timezone = browser timezone
-  - Default category = "Uncategorized"
-
-## Insight Engine
-Linking rule:
-- DIRECT: mood tags attached to transactions (highest confidence)
-- INFERRED: nearest mood within **-2h / +6h**
-- If `time_unknown`, link to same-day mood only
-
-Confidence:
-- High/Med/Low based on count of DIRECT tagged purchases
-
-Required cards:
-- Mood → Spend heatmap
-- Stress trigger categories (Top 3)
-- Late-night leak (22–02)
-- Impulse risk proxy (high arousal + low valence)
-- Comfort spend after low mood
-- Happy spend anchors
-- Weekday drift
-- Unlinked spend share
-
-## Privacy & Controls
-- Delete all data
-- Delete by import batch
-- Export all data (JSON + CSV)
-- Supportive copy, no diagnosis framing
-
-## Performance Instrumentation
-Hidden Debug page (Settings → Debug):
-- `parse_ms`, `normalize_ms`, `db_write_ms`, `compute_ms`
-- `row_count`, `file_size_mb`, `time_unknown_pct`
-
-## Cloudflare Pages
-- Build command: `npm run build`
-- Output directory: `dist`
+Current 8-card set:
+1. Mood -> Spend Heatmap
+2. Impulse Risk Proxy
+3. Late-Night Leak
+4. Top 3 Emotional Triggers
+5. Comfort Spend Pattern
+6. Worth-It Spend Anchors
+7. Weekly Drift
+8. Readiness + Coverage
 
 ## Local Development
 ```bash
@@ -78,13 +45,53 @@ npm install
 npm run dev
 ```
 
-## Manual QA Checklist
-1. Import a CSV, then open Timeline.
-2. Click “+ Mood” on a transaction and save a mood tag.
-3. Confirm the mood pill appears and editing works.
-4. Use “Tag 5 purchases” and complete 5 tags in under 2 minutes.
-5. Open Insights and verify confidence improves after 10+ tagged purchases.
-6. Resize to 390px width and confirm modals and tables fit without overflow.
+## Optional Encrypted Sync (Cloudflare)
 
-## Sources (Background)
-The MVP design is aligned with widely used local-first patterns: client-side CSV parsing with PapaParse (Worker + streaming), IndexedDB via Dexie for persistent storage, and lightweight charting (uPlot for performance). These are summarized in docs and demo repositories across the ecosystem (e.g., local-first budgeting apps, offline-first expense trackers, and IndexedDB performance guidance).
+Worker project:
+- Location: `cloudflare/worker`
+- D1 migration: `cloudflare/worker/migrations/0001_init.sql`
+- Worker routes:
+  - `POST /auth/register/start`
+  - `POST /auth/register/finish`
+  - `POST /auth/login/start`
+  - `POST /auth/login/finish`
+  - `POST /auth/logout`
+  - `GET /me`
+  - `GET /vault`
+  - `PUT /vault`
+
+Setup:
+```bash
+cd cloudflare/worker
+npm install
+```
+
+Configure `cloudflare/worker/wrangler.toml`:
+- set `database_id`
+- set `RP_ID`, `RP_NAME`, `ORIGIN`
+- set secret:
+```bash
+wrangler secret put SESSION_SECRET
+```
+
+Frontend API base:
+- set `VITE_SYNC_API_BASE` (defaults to `/api`)
+
+## Study Mode
+- Route: `/study-mode`
+- Tracks:
+  - task accuracy/time/confidence
+  - A/B variant (`card-feed` vs `dashboard`)
+  - retention proxies (mood streak + session count)
+  - readiness deltas (moods/spend/tagged)
+- Exports one-page HTML report.
+
+## Manual QA Checklist
+1. Import CSV, open Ledger, confirm rows render.
+2. Tag one transaction (`+ Mood`), edit it, then delete it; confirm cards update immediately.
+3. Run `Tag 5 purchases` and finish in under 2 minutes.
+4. At 390px width, confirm ledger rows and mood modal fit with no overflow.
+5. After tagging >=10 purchases, verify at least 3 cards are `Med` or `High`.
+6. Confirm card `Evidence & limits` shows citation ids and limitations.
+7. Confirm no clinical or moralizing wording in surfaced UI copy.
+8. If Worker is configured: create passkey, set sync passphrase, `Sync now`, refresh, `Restore latest`, verify history returns.

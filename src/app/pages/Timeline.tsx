@@ -122,8 +122,8 @@ export default function Timeline() {
     <div>
       <div className="section-header">
         <div>
-          <h1 className="page-title">Timeline</h1>
-          <p className="section-subtitle">All logs in one list.</p>
+          <h1 className="page-title">Ledger</h1>
+          <p className="section-subtitle">Your spending ledger with mood notes.</p>
         </div>
       </div>
 

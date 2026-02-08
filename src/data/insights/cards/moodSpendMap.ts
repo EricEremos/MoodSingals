@@ -55,7 +55,7 @@ export function moodSpendMapCard(context: InsightContext): IndexResult {
   return {
     spec: moodSpendHeatmapSpec,
     insight: linkedCount
-      ? 'Average spend by mood (valence × arousal).'
+      ? 'Average spend by mood and energy.'
       : 'Log spend moments to build the map.',
     detailsNote,
     data: { values, counts },
