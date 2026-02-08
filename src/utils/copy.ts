@@ -146,7 +146,7 @@ export const copy = {
     slides: [
       {
         title: 'What this is',
-        sentence: 'See how moods shape spending-without judgment.',
+        sentence: 'See how moods shape spending—without judgment.',
         bullets: ['Your pace', 'No shaming', 'Small steps count'],
         icon: '✨',
       },
@@ -170,7 +170,7 @@ export const copy = {
       },
       {
         title: 'Insights become clearer',
-        sentence: 'More tagged data -> stronger insights.',
+        sentence: 'More tagged data → stronger insights.',
         bullets: ['Patterns sharpen', 'Next steps improve'],
         icon: '📈',
       },
