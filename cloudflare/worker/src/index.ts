@@ -66,7 +66,7 @@ export default {
         const options = await generateRegistrationOptions({
           rpID: env.RP_ID,
           rpName: env.RP_NAME,
-          userID: userId,
+          userID: textEncoder.encode(userId),
           userName: `user-${userId.slice(0, 8)}`,
           userDisplayName: `MoodSignals ${userId.slice(0, 6)}`,
           attestationType: 'none',
@@ -113,15 +113,17 @@ export default {
           return errorResponse('Passkey registration failed', 400, env)
         }
 
-        const info = verification.registrationInfo as {
-          credential?: { id: Uint8Array; publicKey: Uint8Array; counter: number }
-          credentialID?: Uint8Array
-          credentialPublicKey?: Uint8Array
+        const info = verification.registrationInfo as unknown as {
+          credential?: { id: Uint8Array | string; publicKey: Uint8Array | string; counter: number }
+          credentialID?: Uint8Array | string
+          credentialPublicKey?: Uint8Array | string
           counter?: number
         }
 
-        const credentialId = bytesToBase64Url(info.credential?.id || info.credentialID)
-        const publicKey = bytesToBase64Url(
+        const credentialId = normalizeCredentialField(
+          info.credential?.id || info.credentialID,
+        )
+        const publicKey = normalizeCredentialField(
           info.credential?.publicKey || info.credentialPublicKey,
         )
         const counter = info.credential?.counter ?? info.counter ?? 0
@@ -151,7 +153,7 @@ export default {
         const body = await readJson<{ user_id?: string }>(request)
         const userId = body.user_id || null
 
-        let allowCredentials: Array<{ id: string; type: 'public-key'; transports?: string[] }> | undefined
+        let allowCredentials: Parameters<typeof generateAuthenticationOptions>[0]['allowCredentials']
         if (userId) {
           const credentials = await env.DB.prepare(
             'SELECT id, transports FROM webauthn_credentials WHERE user_id = ?1',
@@ -160,9 +162,8 @@ export default {
             .all<{ id: string; transports: string | null }>()
           allowCredentials = (credentials.results || []).map((item) => ({
             id: item.id,
-            type: 'public-key',
-            transports: item.transports ? (JSON.parse(item.transports) as string[]) : undefined,
-          }))
+            transports: item.transports ? JSON.parse(item.transports) : undefined,
+          })) as Parameters<typeof generateAuthenticationOptions>[0]['allowCredentials']
         }
 
         const options = await generateAuthenticationOptions({
@@ -214,7 +215,9 @@ export default {
             publicKey: base64UrlToBytes(credential.public_key),
             counter: credential.counter,
             transports: credential.transports
-              ? (JSON.parse(credential.transports) as string[])
+              ? (JSON.parse(credential.transports) as Parameters<
+                  typeof verifyAuthenticationResponse
+                >[0]['credential']['transports'])
               : [],
           },
           requireUserVerification: false,
@@ -431,6 +434,12 @@ async function jsonWithSession(data: unknown, userId: string, env: Env) {
   const token = await signSession(session, env.SESSION_SECRET)
   const cookie = `${COOKIE_NAME}=${token}; Path=/; Max-Age=${SESSION_TTL_SECONDS}; HttpOnly; Secure; SameSite=Lax`
   return jsonResponse(data, 200, env, cookie)
+}
+
+function normalizeCredentialField(value: Uint8Array | string | undefined) {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  return bytesToBase64Url(value)
 }
 
 function base64UrlToBytes(value: string) {
