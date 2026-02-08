@@ -15,6 +15,9 @@ export default function Settings() {
   const [researchMode, setResearchMode] = useState(
     localStorage.getItem('ms_research_mode') === 'true',
   )
+  const [anonMetrics, setAnonMetrics] = useState(
+    localStorage.getItem('ms_anon_metrics') === 'true',
+  )
 
   useEffect(() => {
     const load = async () => {
@@ -184,6 +187,12 @@ export default function Settings() {
     localStorage.setItem('ms_research_mode', String(next))
   }
 
+  const toggleAnonMetrics = () => {
+    const next = !anonMetrics
+    setAnonMetrics(next)
+    localStorage.setItem('ms_anon_metrics', String(next))
+  }
+
   return (
     <div>
       <div className="section-header">
@@ -236,6 +245,16 @@ export default function Settings() {
         <div className="inline-list">
           <button className="button" onClick={toggleDemo}>
             {demoMode ? 'Clear demo data' : 'Load demo data'}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 20 }} className="card">
+        <h3>Anonymous UX metrics</h3>
+        <p className="helper">Off by default.</p>
+        <div className="inline-list">
+          <button className="button" onClick={toggleAnonMetrics}>
+            {anonMetrics ? 'Disable metrics' : 'Enable metrics'}
           </button>
         </div>
       </div>

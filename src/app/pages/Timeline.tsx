@@ -110,6 +110,14 @@ export default function Timeline() {
   const annotationMap = annotationLookup
   const untagged = transactions.filter((tx) => !annotationLookup[tx.id])
 
+  const toggleWorthIt = async (tx: Transaction) => {
+    const next = !tx.worth_it
+    await db.transactions.update(tx.id, { worth_it: next })
+    setTransactions((prev) =>
+      prev.map((item) => (item.id === tx.id ? { ...item, worth_it: next } : item)),
+    )
+  }
+
   return (
     <div>
       <div className="section-header">
@@ -178,6 +186,7 @@ export default function Timeline() {
               <th>Date</th>
               <th>Details</th>
               <th>Mood</th>
+              <th>Worth‑it</th>
               <th>Amount</th>
             </tr>
           </thead>
@@ -220,6 +229,21 @@ export default function Timeline() {
                     <MoodPill label={item.mood} />
                   ) : (
                     <MoodPill label={item.mood} tags={item.tags} />
+                  )}
+                </td>
+                <td>
+                  {item.type === 'Transaction' ? (
+                    <button
+                      className={transactions.find((t) => t.id === item.id)?.worth_it ? 'button button-primary' : 'button'}
+                      onClick={() => {
+                        const tx = transactions.find((t) => t.id === item.id)
+                        if (tx) toggleWorthIt(tx)
+                      }}
+                    >
+                      {transactions.find((t) => t.id === item.id)?.worth_it ? 'Yes' : 'No'}
+                    </button>
+                  ) : (
+                    '-'
                   )}
                 </td>
                 <td>

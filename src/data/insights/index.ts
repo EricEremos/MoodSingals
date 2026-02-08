@@ -9,14 +9,14 @@ import { impulseMomentsMapCard } from './cards/impulseRisk'
 import { comfortSpendingPatternCard } from './cards/comfortSpend'
 import { happyAnchorsCard } from './cards/happyAnchors'
 import { moodSpendMapCard } from './cards/moodSpendMap'
-import { weeklyDriftCard } from './cards/weekdayDrift'
+import { smallFrequentLeaksCard } from './cards/smallFrequentLeaks'
 import { moodSpendHeatmapSpec } from '../indices/specs/moodSpendHeatmap'
 import { impulseRiskSpec } from '../indices/specs/impulseRisk'
 import { lateNightSpec } from '../indices/specs/lateNight'
 import { topTriggersSpec } from '../indices/specs/topTriggers'
 import { comfortSpendSpec } from '../indices/specs/comfortSpend'
 import { worthItAnchorsSpec } from '../indices/specs/worthItAnchors'
-import { weeklyDriftSpec } from '../indices/specs/weeklyDrift'
+import { smallFrequentLeaksSpec } from '../indices/specs/smallFrequentLeaks'
 import { readinessSpec } from '../indices/specs/readiness'
 
 export type InsightContext = {
@@ -65,7 +65,7 @@ export function computeInsights(
     topTriggersSpec,
     comfortSpendSpec,
     worthItAnchorsSpec,
-    weeklyDriftSpec,
+    smallFrequentLeaksSpec,
     readinessSpec,
   ]
   specs.forEach(validateIndexSpec)
@@ -77,7 +77,7 @@ export function computeInsights(
     topTriggerTagsCard,
     comfortSpendingPatternCard,
     happyAnchorsCard,
-    weeklyDriftCard,
+    smallFrequentLeaksCard,
     readinessCard,
   ]
     .map((fn) => fn(context))
