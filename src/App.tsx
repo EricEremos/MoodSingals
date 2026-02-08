@@ -3,6 +3,7 @@ import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router
 import { allRoutes, navRoutes } from './app/routes'
 import InfoSheet from './components/InfoSheet'
 import OnboardingGuideModal from './components/OnboardingGuideModal'
+import { Button } from './components/ui'
 import { copy } from './utils/copy'
 import {
   ONBOARDING_OPEN_EVENT,
@@ -14,14 +15,10 @@ const navItems = navRoutes
 
 function AppLayout() {
   const location = useLocation()
-  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(() => shouldAutoShowOnboarding())
   const activeRoute =
     navItems.find((route) => route.path === location.pathname) ||
     navItems.find((route) => route.path !== '/' && location.pathname.startsWith(route.path))
-
-  useEffect(() => {
-    setShowOnboarding(shouldAutoShowOnboarding())
-  }, [])
 
   useEffect(() => {
     const openGuide = () => setShowOnboarding(true)
@@ -40,10 +37,10 @@ function AppLayout() {
           <p className="body-subtle">{copy.app.subtitle}</p>
         </div>
         <div className="inline-list">
-          <button className="button" type="button" onClick={() => setShowOnboarding(true)}>
+          <Button variant="ghost" type="button" onClick={() => setShowOnboarding(true)}>
             {copy.app.helpAction}
-          </button>
-          <span className="status-chip">Local-only</span>
+          </Button>
+          <span className="status-chip">{copy.app.statusChip}</span>
           <InfoSheet title={copy.app.privacySheetTitle}>
             <ul className="sheet-list">
               {copy.app.privacySheetBody.map((line) => (
@@ -53,15 +50,32 @@ function AppLayout() {
           </InfoSheet>
         </div>
       </header>
-      <main className="main-content">
-        <div className="page-wrap">
-          <Routes>
-            {allRoutes.map((route) => (
-              <Route key={route.path} path={route.path} element={route.element} />
-            ))}
-          </Routes>
-        </div>
-      </main>
+      <div className="app-body">
+        <nav className="desktop-nav" aria-label="Primary">
+          {navItems.map((route) => (
+            <NavLink
+              key={route.path}
+              to={route.path}
+              className={({ isActive }) =>
+                `desktop-nav-link ${isActive ? 'desktop-nav-link-active' : ''}`
+              }
+              end={route.path === '/'}
+            >
+              {route.label}
+            </NavLink>
+          ))}
+        </nav>
+        <main className="main-content">
+          <div className="page-wrap">
+            <Routes>
+              {allRoutes.map((route) => (
+                <Route key={route.path} path={route.path} element={route.element} />
+              ))}
+            </Routes>
+          </div>
+        </main>
+      </div>
+
       <nav className="bottom-nav" aria-label="Primary">
         {navItems.map((route) => (
           <NavLink

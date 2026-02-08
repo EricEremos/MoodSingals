@@ -12,6 +12,7 @@ import MoodAttachModal from '../../components/TransactionMood/MoodAttachModal'
 import BatchTagFlow from '../../components/TransactionMood/BatchTagFlow'
 import MoodPill from '../../components/TransactionMood/MoodPill'
 import InfoSheet from '../../components/InfoSheet'
+import { Button, Card, CardHeader, EmptyState } from '../../components/ui'
 import { copy } from '../../utils/copy'
 
 type TimelineType = 'Mood' | 'Spend' | 'Transaction'
@@ -58,7 +59,10 @@ export default function Timeline() {
   }
 
   useEffect(() => {
-    refresh()
+    const timer = window.setTimeout(() => {
+      void refresh()
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [])
 
   const annotationLookup = useMemo(() => {
@@ -161,24 +165,24 @@ export default function Timeline() {
               ))}
             </ul>
           </InfoSheet>
-          <button className="button button-primary" type="button" onClick={() => setShowFilters(true)}>
+          <Button variant="primary" type="button" onClick={() => setShowFilters(true)}>
             {copy.timeline.filterAction}
-          </button>
+          </Button>
         </div>
       </div>
 
       {untaggedTransactions.length ? (
-        <div className="card card-elevated">
-          <button className="button button-primary" type="button" onClick={() => setShowBatch(true)}>
+        <Card elevated>
+          <Button variant="primary" type="button" onClick={() => setShowBatch(true)}>
             {copy.timeline.tagAction}
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : null}
 
       {items.length ? (
         <div className="timeline-list">
           {items.slice(0, 120).map((item) => (
-            <article key={item.id} className="timeline-item card">
+            <Card key={item.id} className="timeline-item">
               <div className="timeline-meta">
                 <span className="tag">{item.type}</span>
                 <span className="body-subtle">{formatLocalDate(item.when)}</span>
@@ -190,8 +194,8 @@ export default function Timeline() {
               </div>
               <div className="timeline-actions">
                 {item.transactionId ? (
-                  <button
-                    className={annotationLookup[item.transactionId] ? 'button button-muted' : 'button'}
+                  <Button
+                    variant={annotationLookup[item.transactionId] ? 'secondary' : 'ghost'}
                     type="button"
                     onClick={() => {
                       const selected = transactions.find((tx) => tx.id === item.transactionId)
@@ -199,7 +203,7 @@ export default function Timeline() {
                     }}
                   >
                     {annotationLookup[item.transactionId] ? 'Edit mood' : '+ Mood'}
-                  </button>
+                  </Button>
                 ) : null}
                 {item.amount !== undefined ? (
                   <strong className="amount-value">
@@ -207,25 +211,22 @@ export default function Timeline() {
                   </strong>
                 ) : null}
               </div>
-            </article>
+            </Card>
           ))}
         </div>
       ) : (
-        <div className="empty-state">
-          <p className="card-title">{copy.timeline.emptyTitle}</p>
-          <p className="body-subtle">{copy.timeline.emptySubtitle}</p>
-        </div>
+        <EmptyState title={copy.timeline.emptyTitle} description={copy.timeline.emptySubtitle} />
       )}
 
       {showFilters ? (
         <div className="sheet-backdrop" onClick={() => setShowFilters(false)}>
           <section className="info-sheet filter-sheet" onClick={(event) => event.stopPropagation()}>
-            <div className="info-sheet-header">
+            <CardHeader className="info-sheet-header">
               <h3 className="card-title">{copy.timeline.filterTitle}</h3>
-              <button className="button button-ghost" type="button" onClick={() => setShowFilters(false)}>
+              <Button variant="ghost" type="button" onClick={() => setShowFilters(false)}>
                 Close
-              </button>
-            </div>
+              </Button>
+            </CardHeader>
             <div className="filter-grid">
               <label className="field-block">
                 <span className="section-label">From</span>
@@ -297,12 +298,12 @@ export default function Timeline() {
               </label>
             </div>
             <div className="inline-list" style={{ marginTop: 16 }}>
-              <button className="button" type="button" onClick={resetFilters}>
+              <Button variant="ghost" type="button" onClick={resetFilters}>
                 {copy.timeline.resetFilters}
-              </button>
-              <button className="button button-primary" type="button" onClick={() => setShowFilters(false)}>
+              </Button>
+              <Button variant="primary" type="button" onClick={() => setShowFilters(false)}>
                 Apply
-              </button>
+              </Button>
             </div>
           </section>
         </div>

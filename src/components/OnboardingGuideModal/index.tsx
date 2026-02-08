@@ -27,7 +27,8 @@ export default function OnboardingGuideModal({
 
   useEffect(() => {
     if (!open) return
-    setIndex(0)
+    const frame = window.requestAnimationFrame(() => setIndex(0))
+    return () => window.cancelAnimationFrame(frame)
   }, [open])
 
   useEffect(() => {

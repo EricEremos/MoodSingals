@@ -70,6 +70,10 @@ async function captureReadiness(): Promise<ReadinessSnapshot> {
   }
 }
 
+function currentTickMs() {
+  return Number(new Date())
+}
+
 function pickVariant(): 'card-feed' | 'dashboard' {
   const existing = localStorage.getItem('ms_study_variant')
   if (existing === 'card-feed' || existing === 'dashboard') return existing
@@ -84,16 +88,17 @@ export default function ResearchMode() {
   const [taskStartedAt, setTaskStartedAt] = useState<number | null>(null)
   const [results, setResults] = useState<TaskResult[]>([])
   const [variant, setVariant] = useState<'card-feed' | 'dashboard'>(pickVariant)
-  const [sessionCount, setSessionCount] = useState(0)
+  const [sessionCount] = useState(() => {
+    const next = Number(localStorage.getItem('ms_study_sessions') || '0') + 1
+    localStorage.setItem('ms_study_sessions', String(next))
+    return next
+  })
   const [baselineReadiness, setBaselineReadiness] = useState<ReadinessSnapshot | null>(null)
   const [finalReadiness, setFinalReadiness] = useState<ReadinessSnapshot | null>(null)
 
   const task = TASKS[index]
 
   useEffect(() => {
-    const next = Number(localStorage.getItem('ms_study_sessions') || '0') + 1
-    localStorage.setItem('ms_study_sessions', String(next))
-    setSessionCount(next)
     const hydrate = async () => {
       const snapshot = await captureReadiness()
       setFinalReadiness(snapshot)
@@ -102,7 +107,7 @@ export default function ResearchMode() {
   }, [])
 
   const start = async () => {
-    const now = Date.now()
+    const now = currentTickMs()
     const snapshot = await captureReadiness()
     setBaselineReadiness(snapshot)
     setStartedAt(now)
@@ -111,7 +116,7 @@ export default function ResearchMode() {
 
   const answer = (value: string) => {
     if (!taskStartedAt) return
-    const timeMs = Date.now() - taskStartedAt
+    const timeMs = currentTickMs() - taskStartedAt
     const correct = value === task.correct
     setResults((prev) => {
       const next = [...prev, { taskId: task.id, answer: value, correct, confidence: 3, timeMs }]
@@ -132,7 +137,7 @@ export default function ResearchMode() {
 
   const next = async () => {
     if (index < TASKS.length - 1) {
-      const now = Date.now()
+      const now = currentTickMs()
       setIndex(index + 1)
       setTaskStartedAt(now)
     } else {
@@ -175,11 +180,11 @@ export default function ResearchMode() {
     <meta charset="utf-8" />
     <title>MoodSignals Study Report</title>
     <style>
-      body { font-family: Arial, sans-serif; margin: 24px; color: #111; }
+      body { font-family: Arial, sans-serif; margin: 24px; color: black; }
       h1, h2 { margin: 0 0 12px; }
-      .card { border: 1px solid #ddd; border-radius: 12px; padding: 14px; margin-top: 12px; }
+      .card { border: 1px solid gainsboro; border-radius: 12px; padding: 14px; margin-top: 12px; }
       .row { display: flex; justify-content: space-between; margin: 6px 0; }
-      .muted { color: #555; }
+      .muted { color: dimgray; }
     </style>
   </head>
   <body>

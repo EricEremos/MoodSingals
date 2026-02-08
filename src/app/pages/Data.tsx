@@ -5,6 +5,7 @@ import { copy } from '../../utils/copy'
 import { exportJsonSnapshot, importJsonSnapshot } from '../../data/transfer/json'
 import { exportCsvSnapshots } from '../../data/transfer/csv'
 import { loadSampleData, resetSampleData } from '../../data/sample'
+import { Button, Card, CardHeader, EmptyState } from '../../components/ui'
 
 export default function Data() {
   const [imports, setImports] = useState<ImportBatch[]>([])
@@ -53,13 +54,13 @@ export default function Data() {
 
       <CSVWizard onImported={refresh} />
 
-      <section className="card" style={{ marginTop: 16 }}>
-        <div className="card-header">
+      <Card style={{ marginTop: 16 }}>
+        <CardHeader>
           <h3 className="card-title">{copy.data.moveTitle}</h3>
-        </div>
+        </CardHeader>
         <div className="inline-list" style={{ marginTop: 12 }}>
-          <button
-            className="button button-primary"
+          <Button
+            variant="primary"
             type="button"
             onClick={async () => {
               await exportJsonSnapshot()
@@ -67,12 +68,12 @@ export default function Data() {
             }}
           >
             Export JSON
-          </button>
-          <button className="button" type="button" onClick={() => jsonInputRef.current?.click()}>
+          </Button>
+          <Button variant="ghost" type="button" onClick={() => jsonInputRef.current?.click()}>
             Import JSON
-          </button>
-          <button
-            className="button button-muted"
+          </Button>
+          <Button
+            variant="secondary"
             type="button"
             onClick={async () => {
               await exportCsvSnapshots()
@@ -80,7 +81,7 @@ export default function Data() {
             }}
           >
             {copy.data.csvExport}
-          </button>
+          </Button>
         </div>
         <input
           ref={jsonInputRef}
@@ -90,15 +91,15 @@ export default function Data() {
           style={{ display: 'none' }}
           onChange={handleImportJson}
         />
-      </section>
+      </Card>
 
-      <section className="card" style={{ marginTop: 16 }}>
-        <div className="card-header">
+      <Card style={{ marginTop: 16 }}>
+        <CardHeader>
           <h3 className="card-title">Demo data</h3>
-        </div>
+        </CardHeader>
         <div className="inline-list">
-          <button
-            className="button"
+          <Button
+            variant="ghost"
             type="button"
             onClick={async () => {
               await loadSampleData()
@@ -109,9 +110,9 @@ export default function Data() {
             }}
           >
             {copy.data.loadDemo}
-          </button>
-          <button
-            className="button button-muted"
+          </Button>
+          <Button
+            variant="secondary"
             type="button"
             onClick={async () => {
               await resetSampleData()
@@ -123,14 +124,14 @@ export default function Data() {
             disabled={!demoLoaded}
           >
             {copy.data.resetDemo}
-          </button>
+          </Button>
         </div>
-      </section>
+      </Card>
 
-      <section className="card" style={{ marginTop: 16 }}>
-        <div className="card-header">
+      <Card style={{ marginTop: 16 }}>
+        <CardHeader>
           <h3 className="card-title">{copy.data.importHistory}</h3>
-        </div>
+        </CardHeader>
         {imports.length ? (
           <table className="table">
             <thead>
@@ -148,18 +149,18 @@ export default function Data() {
                   <td>{batch.row_count}</td>
                   <td>{new Date(batch.created_at).toLocaleDateString()}</td>
                   <td>
-                    <button className="button button-muted" type="button" onClick={() => deleteBatch(batch)}>
+                    <Button variant="secondary" type="button" onClick={() => deleteBatch(batch)}>
                       Delete
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
-          <div className="empty-state">No imports yet.</div>
+          <EmptyState title="No imports yet." />
         )}
-      </section>
+      </Card>
 
       {status ? <p className="status-text">{status}</p> : null}
     </div>

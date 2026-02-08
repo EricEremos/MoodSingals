@@ -32,8 +32,8 @@ ctx.onmessage = async (event: MessageEvent<ParseMessage>) => {
   const delimiter = detectDelimiter(sample)
 
   let headers: string[] = []
-  let rows: string[][] = []
-  let preview: string[][] = []
+  const rows: string[][] = []
+  const preview: string[][] = []
   let rowCount = 0
   let pendingFirstRow: string[] | null = null
   let headerDetected = false

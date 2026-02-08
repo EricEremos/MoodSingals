@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { VizSpec } from '../../data/indices/viz'
 
-const ACCENT = '#3EE6D3'
-const ACCENT2 = '#8B7CFF'
-const SURFACE = '#1B2840'
-const TEXT_MUTED = '#AAB6C8'
+function cssColor(token: string, fallback: string) {
+  if (typeof window === 'undefined') return fallback
+  const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim()
+  return value || fallback
+}
 
 function Sparkline({ values }: { values: number[] }) {
   const wrapRef = useRef<HTMLDivElement | null>(null)
@@ -22,6 +23,7 @@ function Sparkline({ values }: { values: number[] }) {
     const render = async () => {
       if (!containerRef.current || values.length === 0) return
       try {
+        const accent = cssColor('--primary', 'deepskyblue')
         const uPlot = (await import('uplot')).default
         const x = Float64Array.from(values.map((_, i) => i))
         const y = Float64Array.from(values)
@@ -36,7 +38,7 @@ function Sparkline({ values }: { values: number[] }) {
               { show: false },
               { show: false },
             ],
-            series: [{}, { stroke: ACCENT, width: 2 }],
+            series: [{}, { stroke: accent, width: 2 }],
             padding: [6, 6, 6, 6],
           },
           data,
@@ -69,6 +71,7 @@ function Sparkline({ values }: { values: number[] }) {
   }, [values])
 
   if (fallback) {
+    const accent = cssColor('--primary', 'deepskyblue')
     const max = Math.max(...values, 1)
     const points = values
       .map((v, i) => `${(i / Math.max(values.length - 1, 1)) * 100},${100 - (v / max) * 100}`)
@@ -80,7 +83,7 @@ function Sparkline({ values }: { values: number[] }) {
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
       >
-        <polyline fill="none" stroke={ACCENT} strokeWidth="2" points={points} />
+        <polyline fill="none" stroke={accent} strokeWidth="2" points={points} />
       </svg>
     )
   }
@@ -93,6 +96,8 @@ function Sparkline({ values }: { values: number[] }) {
 }
 
 function BarChart({ labels, values }: { labels: string[]; values: number[] }) {
+  const surface = cssColor('--surface-3', 'slategray')
+  const accent = cssColor('--primary', 'deepskyblue')
   const max = Math.max(...values, 1)
   return (
     <div className="inline-list">
@@ -102,7 +107,7 @@ function BarChart({ labels, values }: { labels: string[]; values: number[] }) {
           <div
             style={{
               height: 8,
-              background: SURFACE,
+              background: surface,
               borderRadius: 999,
               position: 'relative',
             }}
@@ -115,7 +120,7 @@ function BarChart({ labels, values }: { labels: string[]; values: number[] }) {
                 bottom: 0,
                 width: `${(values[idx] / max) * 100}%`,
                 borderRadius: 999,
-                background: ACCENT,
+                background: accent,
               }}
             />
           </div>
@@ -126,18 +131,24 @@ function BarChart({ labels, values }: { labels: string[]; values: number[] }) {
 }
 
 function DonutChart({ labels, values }: { labels: string[]; values: number[] }) {
+  const accent = cssColor('--primary', 'deepskyblue')
+  const accent2 = cssColor('--primary-2', 'mediumpurple')
   const total = values.reduce((acc, v) => acc + v, 0) || 1
   const radius = 28
   const circumference = 2 * Math.PI * radius
-  let offset = 0
+  const offsets = values.reduce<number[]>((acc, value) => {
+    const fraction = value / total
+    const previous = acc.length ? acc[acc.length - 1] : 0
+    acc.push(previous - fraction * circumference)
+    return acc
+  }, [])
 
   return (
     <svg width="90" height="90" viewBox="0 0 100 100">
       {values.map((value, idx) => {
         const fraction = value / total
         const strokeDasharray = `${fraction * circumference} ${circumference}`
-        const strokeDashoffset = offset
-        offset -= fraction * circumference
+        const strokeDashoffset = idx === 0 ? 0 : offsets[idx - 1]
         return (
           <circle
             key={labels[idx]}
@@ -145,7 +156,7 @@ function DonutChart({ labels, values }: { labels: string[]; values: number[] }) 
             cy="50"
             r={radius}
             fill="transparent"
-            stroke={idx === 0 ? ACCENT : ACCENT2}
+            stroke={idx === 0 ? accent : accent2}
             strokeWidth="12"
             strokeDasharray={strokeDasharray}
             strokeDashoffset={strokeDashoffset}
@@ -157,6 +168,7 @@ function DonutChart({ labels, values }: { labels: string[]; values: number[] }) 
 }
 
 function Heatmap({ xLabels, yLabels, values }: Extract<VizSpec, { type: 'heatmap' }>) {
+  const textMuted = cssColor('--text-2', 'lightslategray')
   const flat = values.flat()
   const max = Math.max(...flat, 1)
 
@@ -164,7 +176,7 @@ function Heatmap({ xLabels, yLabels, values }: Extract<VizSpec, { type: 'heatmap
     <div className="heatmap">
       {yLabels.map((rowLabel, rowIdx) => (
         <div key={rowLabel} className="heatmap-row">
-          <div style={{ fontSize: 12, color: TEXT_MUTED }}>{rowLabel}</div>
+          <div style={{ fontSize: 12, color: textMuted }}>{rowLabel}</div>
           {xLabels.map((colLabel, colIdx) => {
             const value = values[rowIdx]?.[colIdx] || 0
             const intensity = value / max
@@ -173,7 +185,7 @@ function Heatmap({ xLabels, yLabels, values }: Extract<VizSpec, { type: 'heatmap
                 key={`${rowLabel}-${colLabel}`}
                 className="heatmap-cell"
                 style={{
-                  background: `rgba(62, 230, 211, ${0.15 + intensity * 0.85})`,
+                  background: `rgb(var(--rgb-primary) / ${0.15 + intensity * 0.85})`,
                 }}
                 title={`${colLabel}: ${value.toFixed(0)}`}
               />

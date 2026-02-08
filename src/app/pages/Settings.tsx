@@ -4,6 +4,8 @@ import { copy } from '../../utils/copy'
 import { exportJsonSnapshot, importJsonSnapshot } from '../../data/transfer/json'
 import { exportCsvSnapshots } from '../../data/transfer/csv'
 import { clearOnboardingSuppression, requestOnboardingGuideOpen } from '../../utils/onboarding'
+import { ENABLE_SYNC } from '../../config/flags'
+import { Button, Card } from '../../components/ui'
 
 type Counts = {
   imports: number
@@ -75,7 +77,7 @@ export default function Settings() {
       </div>
 
       <div className="grid grid-2">
-        <section className="card">
+        <Card>
           <h3 className="card-title">{copy.settings.countTitle}</h3>
           <div className="metric-list" style={{ marginTop: 12 }}>
             <div className="metric-row">
@@ -95,13 +97,13 @@ export default function Settings() {
               <strong>{counts.imports}</strong>
             </div>
           </div>
-        </section>
+        </Card>
 
-        <section className="card">
+        <Card>
           <h3 className="card-title">{copy.settings.privacyTitle}</h3>
           <div className="inline-list" style={{ marginTop: 12 }}>
-            <button
-              className="button button-primary"
+            <Button
+              variant="primary"
               type="button"
               onClick={async () => {
                 await exportJsonSnapshot()
@@ -109,12 +111,12 @@ export default function Settings() {
               }}
             >
               {copy.common.exportData}
-            </button>
-            <button className="button" type="button" onClick={() => jsonInputRef.current?.click()}>
+            </Button>
+            <Button variant="ghost" type="button" onClick={() => jsonInputRef.current?.click()}>
               {copy.common.importData}
-            </button>
-            <button
-              className="button button-muted"
+            </Button>
+            <Button
+              variant="secondary"
               type="button"
               onClick={async () => {
                 await exportCsvSnapshots()
@@ -122,10 +124,10 @@ export default function Settings() {
               }}
             >
               {copy.data.csvExport}
-            </button>
-            <button className="button button-muted" type="button" onClick={deleteAll}>
+            </Button>
+            <Button variant="destructive" type="button" onClick={deleteAll}>
               {copy.common.deleteAll}
-            </button>
+            </Button>
           </div>
           <p className="body-subtle">{copy.settings.deleteWarning}</p>
           <input
@@ -136,30 +138,61 @@ export default function Settings() {
             style={{ display: 'none' }}
             onChange={onImportJson}
           />
-        </section>
+        </Card>
       </div>
 
-      <section className="card" style={{ marginTop: 16 }}>
+      <Card style={{ marginTop: 16 }}>
         <h3 className="card-title">{copy.settings.accountTitle}</h3>
         <div className="metric-list" style={{ marginTop: 12 }}>
           <p className="body-subtle">{copy.settings.accountLineOne}</p>
           <p className="body-subtle">{copy.settings.accountLineTwo}</p>
           <p className="body-subtle">{copy.settings.accountLineThree}</p>
         </div>
-      </section>
+        <div className="inline-list" style={{ marginTop: 12 }}>
+          <span className={ENABLE_SYNC ? 'status-ok' : 'status-warn'}>
+            {ENABLE_SYNC ? copy.settings.syncStatusOn : copy.settings.syncStatusOff}
+          </span>
+        </div>
+        <p className="body-subtle" style={{ marginTop: 10 }}>
+          {copy.settings.signInLabel}
+        </p>
+        <div className="inline-list" style={{ marginTop: 12 }}>
+          <Button
+            variant="ghost"
+            type="button"
+            disabled={!ENABLE_SYNC}
+            onClick={() => setStatus(copy.settings.signInPending)}
+          >
+            {copy.settings.providerGoogle}
+          </Button>
+          <Button
+            variant="ghost"
+            type="button"
+            disabled={!ENABLE_SYNC}
+            onClick={() => setStatus(copy.settings.signInPending)}
+          >
+            {copy.settings.providerApple}
+          </Button>
+          <Button
+            variant="ghost"
+            type="button"
+            disabled={!ENABLE_SYNC}
+            onClick={() => setStatus(copy.settings.signInPending)}
+          >
+            {copy.settings.providerKakao}
+          </Button>
+        </div>
+        {!ENABLE_SYNC ? <p className="body-subtle">{copy.common.syncOptional}</p> : null}
+      </Card>
 
-      <section className="card" style={{ marginTop: 16 }}>
+      <Card style={{ marginTop: 16 }}>
         <h3 className="card-title">{copy.settings.tutorialTitle}</h3>
         <div className="inline-list" style={{ marginTop: 12 }}>
-          <button
-            className="button button-primary"
-            type="button"
-            onClick={requestOnboardingGuideOpen}
-          >
+          <Button variant="primary" type="button" onClick={requestOnboardingGuideOpen}>
             {copy.settings.openHelp}
-          </button>
-          <button
-            className="button button-muted"
+          </Button>
+          <Button
+            variant="secondary"
             type="button"
             onClick={() => {
               clearOnboardingSuppression()
@@ -167,9 +200,9 @@ export default function Settings() {
             }}
           >
             {copy.settings.resetTutorial}
-          </button>
+          </Button>
         </div>
-      </section>
+      </Card>
 
       {status ? <p className="status-text">{status}</p> : null}
     </div>

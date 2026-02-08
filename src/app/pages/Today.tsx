@@ -2,6 +2,7 @@ import { useState } from 'react'
 import MoodCheckin from '../../components/MoodCheckin'
 import SpendMomentQuickLog from '../../components/SpendMomentQuickLog'
 import InfoSheet from '../../components/InfoSheet'
+import { Card } from '../../components/ui'
 import { copy } from '../../utils/copy'
 
 export default function Today() {
@@ -23,10 +24,10 @@ export default function Today() {
       </div>
 
       {status ? (
-        <div className="card card-elevated">
+        <Card elevated>
           <div className="section-label">{copy.today.statusTitle}</div>
           <div className="body-subtle">{status}</div>
-        </div>
+        </Card>
       ) : null}
 
       <div className="grid grid-2">

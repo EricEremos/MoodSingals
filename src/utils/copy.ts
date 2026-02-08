@@ -2,6 +2,7 @@ export const copy = {
   app: {
     name: 'MoodSignals',
     subtitle: 'Private on this device.',
+    statusChip: 'Private mode',
     privacySheetTitle: 'Your privacy',
     privacySheetBody: [
       'MoodSignals stores your data on this device.',
@@ -21,7 +22,7 @@ export const copy = {
     info: 'Info',
     close: 'Close',
     details: 'Details',
-    evidence: 'Evidence',
+    evidence: 'Evidence & limits',
     deleteAll: 'Delete all',
     exportData: 'Export data',
     importData: 'Import data',
@@ -54,7 +55,7 @@ export const copy = {
     moodsMetric: 'Moods this week',
     spendMetric: 'Spend records 30d',
     taggedMetric: 'Mood-tagged purchases',
-    feedTitle: 'Signal cards',
+    feedTitle: 'Top insights',
     feedSubtitle: 'Eight quick signals.',
     emptyCards: 'Add a log to unlock cards.',
     demoLoaded: 'Demo data loaded.',
@@ -140,6 +141,7 @@ export const copy = {
     providerApple: 'Continue with Apple',
     providerKakao: 'Continue with Kakao',
     signInLabel: 'Sign in to sync (coming soon)',
+    signInPending: 'Sign-in flow is not connected yet.',
     deleteWarning: 'This deletes local data.',
   },
   onboarding: {
@@ -183,7 +185,7 @@ export const copy = {
       {
         title: 'No login yet',
         sentence: 'Login is coming. For now, use Export/Import to move data.',
-        bullets: ['Local-first today', 'Sync in V2'],
+        bullets: ['Private by default', 'Sync in V2'],
         icon: '🔑',
       },
     ],

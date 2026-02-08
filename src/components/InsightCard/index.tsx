@@ -3,6 +3,7 @@ import type { IndexResult } from '../../data/indices/types'
 import ChartMini from '../Charts'
 import ConfidenceBadge from '../ConfidenceBadge'
 import InfoSheet from '../InfoSheet'
+import { Card, Disclosure } from '../ui'
 import { copy } from '../../utils/copy'
 
 export default function InsightCard({ card }: { card: IndexResult }) {
@@ -11,7 +12,7 @@ export default function InsightCard({ card }: { card: IndexResult }) {
     copy.common.confidenceLevel[card.confidence.level] || confidenceReasons
 
   return (
-    <article className="card">
+    <Card as="article">
       <div className="card-header">
         <h3 className="card-title">{card.spec.name}</h3>
         <ConfidenceBadge confidence={card.confidence} />
@@ -20,9 +21,7 @@ export default function InsightCard({ card }: { card: IndexResult }) {
       <p className="insight-line">{card.insight}</p>
       <ChartMini spec={card.vizSpec} />
 
-      <details className="collapse" style={{ marginTop: 12 }}>
-        <summary>{copy.common.details}</summary>
-        <div className="collapse-body">
+      <Disclosure title={copy.common.details} className="insight-disclosure">
           <p className="body-subtle">Next: {card.microAction}</p>
           {card.gap ? (
             <div className="gap-panel">
@@ -34,19 +33,16 @@ export default function InsightCard({ card }: { card: IndexResult }) {
           ) : null}
           <InfoSheet title={copy.common.details}>
             <ul className="sheet-list">
-              <li>Question: {card.spec.user_question}</li>
-              <li>Rule: {card.spec.matching_rule}</li>
-              <li>Formula: {card.spec.formula}</li>
-              <li>Minimum data: {card.spec.minimum_data}</li>
-              <li>Normalization: {card.spec.normalization}</li>
+              <li>Question this card answers: {card.spec.user_question}</li>
+              <li>How events are matched: {card.spec.matching_rule}</li>
+              <li>How the score is estimated: {card.spec.formula}</li>
+              <li>Data needed: {card.spec.minimum_data}</li>
+              <li>Adjustment rule: {card.spec.normalization}</li>
             </ul>
           </InfoSheet>
-        </div>
-      </details>
+      </Disclosure>
 
-      <details className="collapse" style={{ marginTop: 12 }}>
-        <summary>{copy.common.evidence}</summary>
-        <div className="collapse-body">
+      <Disclosure title={copy.common.evidence} className="insight-disclosure">
           <p className="body-subtle">{confidenceHint}</p>
           {confidenceReasons && confidenceReasons !== confidenceHint ? (
             <p className="body-subtle">{confidenceReasons}</p>
@@ -63,8 +59,7 @@ export default function InsightCard({ card }: { card: IndexResult }) {
               ))}
             </ul>
           </InfoSheet>
-        </div>
-      </details>
-    </article>
+      </Disclosure>
+    </Card>
   )
 }

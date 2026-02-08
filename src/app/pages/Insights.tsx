@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import InsightCard from '../../components/InsightCard'
 import InfoSheet from '../../components/InfoSheet'
+import { Button, Card, CardHeader, EmptyState, ProgressBar } from '../../components/ui'
 import {
   db,
   type MoodLog,
@@ -10,7 +11,6 @@ import {
   type TxMoodAnnotation,
 } from '../../data/db'
 import { computeInsights, confidenceScore } from '../../data/insights'
-import type { IndexResult } from '../../data/indices/types'
 import { loadSampleData } from '../../data/sample'
 import { copy } from '../../utils/copy'
 
@@ -19,9 +19,9 @@ export default function Insights() {
   const [moods, setMoods] = useState<MoodLog[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [annotations, setAnnotations] = useState<TxMoodAnnotation[]>([])
-  const [cards, setCards] = useState<IndexResult[]>([])
   const [status, setStatus] = useState('')
   const [lastRefresh, setLastRefresh] = useState(0)
+  const [now] = useState(() => Date.now())
 
   useEffect(() => {
     const load = async () => {
@@ -39,30 +39,33 @@ export default function Insights() {
     load()
   }, [lastRefresh])
 
-  useEffect(() => {
+  const cards = useMemo(() => {
     const computed = computeInsights(spendMoments, moods, transactions, annotations)
     const sorted = computed.sort((a, b) => {
       const scoreA = confidenceScore(a.confidence.level) * a.relevance
       const scoreB = confidenceScore(b.confidence.level) * b.relevance
       return scoreB - scoreA
     })
-    setCards(sorted.slice(0, 8))
+    return sorted.slice(0, 8)
   }, [spendMoments, moods, transactions, annotations])
 
   const readiness = useMemo(() => {
-    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-    const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000
+    const weekAgo = now - 7 * 24 * 60 * 60 * 1000
+    const monthAgo = now - 30 * 24 * 60 * 60 * 1000
     const moodsThisWeek = moods.filter((entry) => new Date(entry.occurred_at).getTime() >= weekAgo).length
     const spendLast30 =
       spendMoments.filter((entry) => new Date(entry.created_at).getTime() >= monthAgo).length +
       transactions.filter((entry) => new Date(entry.occurred_at).getTime() >= monthAgo).length
     const moodTaggedPurchases = annotations.length
+    const totalSpend = spendLast30 || 1
+    const coverage = Math.round((moodTaggedPurchases / totalSpend) * 100)
     return {
       moodsThisWeek,
       spendLast30,
       moodTaggedPurchases,
+      coverage,
     }
-  }, [moods, spendMoments, transactions, annotations])
+  }, [moods, spendMoments, transactions, annotations, now])
 
   const loadDemo = async () => {
     try {
@@ -86,8 +89,8 @@ export default function Insights() {
       {status ? <p className="status-text">{status}</p> : null}
 
       <div className="grid grid-2">
-        <section className="card card-elevated">
-          <div className="card-header">
+        <Card elevated>
+          <CardHeader>
             <h3 className="card-title">{copy.insights.startTitle}</h3>
             <InfoSheet title={copy.insights.startInfoTitle}>
               <ul className="sheet-list">
@@ -96,22 +99,22 @@ export default function Insights() {
                 ))}
               </ul>
             </InfoSheet>
-          </div>
+          </CardHeader>
           <div className="inline-list" style={{ marginTop: 16 }}>
-            <button className="button button-primary" type="button" onClick={loadDemo}>
+            <Button variant="primary" type="button" onClick={loadDemo}>
               {copy.insights.demoAction}
-            </button>
-            <Link to="/today" className="button">
+            </Button>
+            <Link to="/today" className="button button-muted">
               {copy.insights.logAction}
             </Link>
-            <Link to="/data" className="button button-muted">
+            <Link to="/data" className="button">
               {copy.insights.importAction}
             </Link>
           </div>
-        </section>
+        </Card>
 
-        <section className="card">
-          <div className="card-header">
+        <Card>
+          <CardHeader>
             <h3 className="card-title">{copy.insights.readinessTitle}</h3>
             <InfoSheet title={copy.insights.readinessInfoTitle}>
               <ul className="sheet-list">
@@ -120,22 +123,18 @@ export default function Insights() {
                 ))}
               </ul>
             </InfoSheet>
-          </div>
+          </CardHeader>
           <div className="metric-list" style={{ marginTop: 16 }}>
-            <div className="metric-row">
-              <span>{copy.insights.moodsMetric}</span>
-              <strong>{readiness.moodsThisWeek}</strong>
-            </div>
-            <div className="metric-row">
-              <span>{copy.insights.spendMetric}</span>
-              <strong>{readiness.spendLast30}</strong>
-            </div>
-            <div className="metric-row">
-              <span>{copy.insights.taggedMetric}</span>
-              <strong>{readiness.moodTaggedPurchases}</strong>
-            </div>
+            <ProgressBar label={copy.insights.moodsMetric} value={readiness.moodsThisWeek} max={7} />
+            <ProgressBar label={copy.insights.spendMetric} value={readiness.spendLast30} max={30} />
+            <ProgressBar
+              label={copy.insights.taggedMetric}
+              value={readiness.moodTaggedPurchases}
+              max={10}
+              valueLabel={`${readiness.coverage}%`}
+            />
           </div>
-        </section>
+        </Card>
       </div>
 
       <section>
@@ -150,7 +149,7 @@ export default function Insights() {
             ))}
           </div>
         ) : (
-          <div className="empty-state">{copy.insights.emptyCards}</div>
+          <EmptyState title={copy.insights.emptyCards} />
         )}
       </section>
     </div>

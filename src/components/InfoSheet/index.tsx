@@ -1,4 +1,5 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
+import { Button, IconButton } from '../ui'
 
 type InfoSheetProps = {
   title: string
@@ -32,16 +33,13 @@ export default function InfoSheet({
 
   return (
     <>
-      <button
-        type="button"
-        className="icon-button"
-        aria-label={title}
+      <IconButton
+        label={title}
+        icon={triggerLabel}
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}
-      >
-        {triggerLabel}
-      </button>
+      />
       {open ? (
         <div className="sheet-backdrop" onClick={() => setOpen(false)}>
           <section
@@ -55,9 +53,9 @@ export default function InfoSheet({
               <h3 id={titleId} className="card-title">
                 {title}
               </h3>
-              <button type="button" className="button button-ghost" onClick={() => setOpen(false)}>
+              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
                 Close
-              </button>
+              </Button>
             </div>
             {summary ? <p className="body-subtle">{summary}</p> : null}
             <div className="info-sheet-body">{children}</div>

@@ -19,7 +19,7 @@ export type NormalizeResult = {
 }
 
 function sanitizeAmount(raw: string) {
-  const cleaned = raw.replace(/[^0-9.\-]/g, '')
+  const cleaned = raw.replace(/[^0-9.-]/g, '')
   return Number.parseFloat(cleaned)
 }
 
