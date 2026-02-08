@@ -1,7 +1,9 @@
 import type { IndexResult } from '../../indices/types'
 import type { InsightContext } from '../index'
 import { topTriggersSpec } from '../../indices/specs/topTriggers'
+import type { Confidence } from '../confidence'
 import { directConfidence } from '../confidence'
+import { directLinkDetailsNote, moodTagUnlockGap, selectMoodLinkedTransactions } from '../directLinks'
 
 export function topTriggerTagsCard(context: InsightContext): IndexResult {
   const baseCounts: Record<string, number> = {}
@@ -18,7 +20,8 @@ export function topTriggerTagsCard(context: InsightContext): IndexResult {
     }
   })
 
-  context.linkedTransactions.forEach((tx) => {
+  const selection = selectMoodLinkedTransactions(context)
+  selection.linked.forEach((tx) => {
     baseCounts[tx.category] = (baseCounts[tx.category] || 0) + 1
     baseTotal += 1
     if (tx.linkedMood && tx.linkedMood.mood_valence <= -1) {
@@ -38,15 +41,21 @@ export function topTriggerTagsCard(context: InsightContext): IndexResult {
   const labels = top.map((t) => t.category)
   const values = top.map((t) => Math.max(0, Number(t.lift.toFixed(1))))
 
-  const confidence = directConfidence(context.directCount)
-  const detailsNote =
-    context.directCount >= 10
-      ? 'Using direct mood tags.'
-      : 'Using inferred links (time window).'
-  const gap =
-    context.directCount < 10
-      ? { message: 'Tag 10 purchases to unlock this insight.', ctaLabel: 'Tag purchases', ctaHref: '/timeline' }
-      : undefined
+  const confidence: Confidence = directConfidence(context.directCount)
+  const detailsNote = directLinkDetailsNote(selection.usesInferred)
+  const gap = moodTagUnlockGap(context.directCount)
+  const topSample = top.length > 0 ? (baseCounts[top[0].category] || 0) : 0
+
+  if (baseTotal < 30 || context.moodLogs.length < 7) {
+    confidence.level = 'Low'
+    confidence.reasons.push('Need at least 30 linked records and 7 mood logs')
+  } else if (
+    confidence.level === 'High' &&
+    (baseTotal < 60 || context.moodLogs.length < 14 || topSample < 10)
+  ) {
+    confidence.level = 'Med'
+    confidence.reasons.push('Need larger trigger samples for high confidence')
+  }
 
   return {
     spec: topTriggersSpec,

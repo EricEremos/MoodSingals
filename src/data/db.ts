@@ -111,6 +111,13 @@ class MoodSignalsDB extends Dexie {
       mood_logs: 'id, occurred_at, mood_label',
       imports: 'id, created_at',
     })
+    this.version(5).stores({
+      transactions: 'id, occurred_at, category, import_batch_id, mood_log_id, raw_hash',
+      tx_mood_annotations: 'id, &transaction_id, created_at, mood_label, memory_confidence',
+      spend_moments: 'id, created_at, category, urge_level',
+      mood_logs: 'id, occurred_at, mood_label',
+      imports: 'id, created_at',
+    })
   }
 }
 

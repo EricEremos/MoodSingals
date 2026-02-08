@@ -12,7 +12,7 @@ export function directConfidence(directCount: number): Confidence {
   if (directCount >= 10) {
     return { level: 'Med', reasons: ['Tag 20 for high confidence'] }
   }
-  return { level: 'Low', reasons: ['Tag 10 purchases to estimate reliably'] }
+  return { level: 'Low', reasons: ['Tag 10 purchases to estimate this reliably.'] }
 }
 
 export function confidenceFromCount(params: {

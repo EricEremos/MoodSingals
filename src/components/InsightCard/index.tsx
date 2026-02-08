@@ -56,18 +56,23 @@ export default function InsightCard({ card }: { card: IndexResult }) {
           <div className="helper">Match: {card.spec.matching_rule}</div>
           <div className="helper">Formula: {card.spec.formula}</div>
           <div className="helper">Minimum data: {card.spec.minimum_data}</div>
+          <div className="helper">Confidence mapping: {card.spec.confidence.mapping_function}</div>
           <div className="helper">Confidence: {card.spec.confidence.low} / {card.spec.confidence.medium} / {card.spec.confidence.high}</div>
+          <div className="helper">Normalization: {card.spec.normalization}</div>
         </div>
       ) : (
         <div className="tab-panel">
           <ul className="helper">
             {card.spec.citations.map((item) => (
               <li key={item.id}>
-                {item.authors} ({item.year}) — {item.title}
+                [{item.id}] {item.authors} ({item.year}) - {item.title}
               </li>
             ))}
             {card.spec.limitations.map((item) => (
               <li key={item}>{item}</li>
+            ))}
+            {card.spec.validation_plan.map((item) => (
+              <li key={item}>Validation: {item}</li>
             ))}
           </ul>
         </div>

@@ -1,7 +1,9 @@
 import type { IndexResult } from '../../indices/types'
 import type { InsightContext } from '../index'
 import { moodSpendHeatmapSpec } from '../../indices/specs/moodSpendHeatmap'
+import type { Confidence } from '../confidence'
 import { directConfidence } from '../confidence'
+import { directLinkDetailsNote, moodTagUnlockGap, selectMoodLinkedTransactions } from '../directLinks'
 
 export function moodSpendMapCard(context: InsightContext): IndexResult {
   const valenceBins = [-2, -1, 0, 1, 2]
@@ -22,7 +24,8 @@ export function moodSpendMapCard(context: InsightContext): IndexResult {
     push(moment.valence, moment.arousal, moment.amount)
   })
 
-  context.linkedTransactions.forEach((tx) => {
+  const selection = selectMoodLinkedTransactions(context)
+  selection.linked.forEach((tx) => {
     if (!tx.linkedMood) return
     const amount = tx.outflow > 0 ? tx.outflow : 0
     push(tx.linkedMood.mood_valence, tx.linkedMood.mood_arousal, amount)
@@ -32,16 +35,22 @@ export function moodSpendMapCard(context: InsightContext): IndexResult {
     row.map((sum, vIdx) => (counts[aIdx][vIdx] ? sum / counts[aIdx][vIdx] : 0)),
   )
 
-  const confidence = directConfidence(context.directCount)
-  const linkedCount = context.linkedCount
-  const detailsNote =
-    context.directCount >= 10
-      ? 'Using direct mood tags.'
-      : 'Using inferred links (time window).'
-  const gap =
-    context.directCount < 10
-      ? { message: 'Tag 10 purchases to unlock this insight.', ctaLabel: 'Tag purchases', ctaHref: '/timeline' }
-      : undefined
+  const confidence: Confidence = directConfidence(context.directCount)
+  const linkedCount = context.spendMoments.length + selection.linked.length
+  const detailsNote = directLinkDetailsNote(selection.usesInferred)
+  const gap = moodTagUnlockGap(context.directCount)
+  const moodCount = context.moodLogs.length
+
+  if (linkedCount < 30 || moodCount < 7) {
+    confidence.level = 'Low'
+    confidence.reasons.push('Need at least 30 linked spend records and 7 mood logs')
+  } else if (
+    confidence.level === 'High' &&
+    (linkedCount < 60 || moodCount < 14 || context.linkCoverage < 0.6)
+  ) {
+    confidence.level = 'Med'
+    confidence.reasons.push('More linked coverage needed for high confidence')
+  }
 
   return {
     spec: moodSpendHeatmapSpec,

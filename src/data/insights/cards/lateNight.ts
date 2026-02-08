@@ -1,7 +1,7 @@
 import type { IndexResult } from '../../indices/types'
 import type { InsightContext } from '../index'
 import { lateNightSpec } from '../../indices/specs/lateNight'
-import { directConfidence } from '../confidence'
+import type { Confidence } from '../confidence'
 
 export function lateNightLeakCard(context: InsightContext): IndexResult {
   const txWithTime = context.transactions.filter((tx) => !tx.time_unknown)
@@ -17,8 +17,15 @@ export function lateNightLeakCard(context: InsightContext): IndexResult {
   const total = events.length
   const share = total ? lateNight.length / total : 0
 
-  const confidence = directConfidence(context.directCount)
-  if (total < 30) confidence.reasons.push('Need 30 timestamped records')
+  const missingShare = context.transactions.length
+    ? context.transactions.filter((tx) => tx.time_unknown).length / context.transactions.length
+    : 0
+  const confidence: Confidence =
+    total < 30
+      ? { level: 'Low', reasons: ['Need 30 timestamped records'] }
+      : total < 60 || missingShare > 0.2
+        ? { level: 'Med', reasons: ['Improve timestamp coverage for higher confidence'] }
+        : { level: 'High', reasons: [] }
 
   return {
     spec: lateNightSpec,

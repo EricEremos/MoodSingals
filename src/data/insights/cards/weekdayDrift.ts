@@ -1,7 +1,7 @@
 import type { IndexResult } from '../../indices/types'
 import type { InsightContext } from '../index'
 import { weeklyDriftSpec } from '../../indices/specs/weeklyDrift'
-import { directConfidence } from '../confidence'
+import type { Confidence } from '../confidence'
 
 const weekKey = (date: Date) => {
   const d = new Date(date)
@@ -38,18 +38,23 @@ export function weeklyDriftCard(context: InsightContext): IndexResult {
   const moodVar = weeks.map((key) => variance(moodByWeek[key]))
   const spendVar = weeks.map((key) => variance(spendByWeek[key]))
   const corr = correlation(moodVar, spendVar)
+  const ci95 = correlationConfidenceInterval(corr, weeks.length)
 
-  const confidence = directConfidence(context.directCount)
-  if (weeks.length < 4) confidence.reasons.push('Need 4 weeks of data')
+  const confidence: Confidence =
+    weeks.length < 4
+      ? { level: 'Low', reasons: ['Need at least 4 weeks of data'] }
+      : weeks.length < 8
+        ? { level: 'Med', reasons: ['Add more complete weeks for stronger stability'] }
+        : { level: 'High', reasons: [] }
 
   return {
     spec: weeklyDriftSpec,
     insight:
       weeks.length >= 4
-        ? `Weekly mood vs spend volatility: ${corr.toFixed(2)}.`
+        ? `Weekly mood vs spend volatility: ${corr.toFixed(2)} (95% CI ${ci95.lower.toFixed(2)} to ${ci95.upper.toFixed(2)}).`
         : 'Not enough weekly data yet.',
-    data: { weeks, moodVar, spendVar, corr },
-    detailsNote: 'Weekly aggregates of mood and spend.',
+    data: { weeks, moodVar, spendVar, corr, ci95 },
+    detailsNote: 'Weekly aggregates of mood and spend variance. CI uses Fisher transform [estimate].',
     vizSpec: {
       type: 'spark',
       values: spendVar.length ? spendVar : [0, 0, 0, 0],
@@ -87,4 +92,17 @@ function correlation(x: number[], y: number[]) {
   }
   const denom = Math.sqrt(dx * dy)
   return denom ? num / denom : 0
+}
+
+function correlationConfidenceInterval(corr: number, n: number) {
+  if (n <= 3) return { lower: corr, upper: corr }
+  const clipped = Math.max(-0.999, Math.min(0.999, corr))
+  const fisher = 0.5 * Math.log((1 + clipped) / (1 - clipped))
+  const se = 1 / Math.sqrt(n - 3)
+  const z = 1.96
+  const lowerZ = fisher - z * se
+  const upperZ = fisher + z * se
+  const lower = (Math.exp(2 * lowerZ) - 1) / (Math.exp(2 * lowerZ) + 1)
+  const upper = (Math.exp(2 * upperZ) - 1) / (Math.exp(2 * upperZ) + 1)
+  return { lower, upper }
 }

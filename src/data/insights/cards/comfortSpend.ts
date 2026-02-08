@@ -1,12 +1,15 @@
 import type { IndexResult } from '../../indices/types'
 import type { InsightContext } from '../index'
 import { comfortSpendSpec } from '../../indices/specs/comfortSpend'
+import type { Confidence } from '../confidence'
 import { directConfidence } from '../confidence'
+import { directLinkDetailsNote, moodTagUnlockGap, selectMoodLinkedTransactions } from '../directLinks'
 
 const DISCRETIONARY = new Set(['Dining', 'Shopping', 'Subscriptions', 'Other', 'Entertainment'])
 
 export function comfortSpendingPatternCard(context: InsightContext): IndexResult {
-  const linked = context.linkedTransactions.filter((tx) => tx.linkedMood)
+  const selection = selectMoodLinkedTransactions(context)
+  const linked = selection.linked
   const lowLinked = linked.filter((tx) => tx.linkedMood && tx.linkedMood.mood_valence <= -1)
   const lowSpendMoments = context.spendMoments.filter((m) => m.valence <= -1)
 
@@ -26,17 +29,24 @@ export function comfortSpendingPatternCard(context: InsightContext): IndexResult
   const delta = baseAvg ? ((lowAvg - baseAvg) / baseAvg) * 100 : 0
 
   const totalLow = lowSpendMoments.length + lowLinked.length
-  const confidence = directConfidence(context.directCount)
-  const detailsNote =
-    context.directCount >= 10
-      ? 'Using direct mood tags.'
-      : 'Using inferred links (time window).'
+  const confidence: Confidence = directConfidence(context.directCount)
+  const detailsNote = directLinkDetailsNote(selection.usesInferred)
   const gap =
-    context.directCount < 10
-      ? { message: 'Tag 10 purchases to unlock this insight.', ctaLabel: 'Tag purchases', ctaHref: '/timeline' }
-      : totalLow < 8
-        ? { message: 'Need 8 low‑mood moments.', ctaLabel: 'Log a mood', ctaHref: '/today' }
-        : undefined
+    moodTagUnlockGap(context.directCount) ||
+    (totalLow < 8
+      ? { message: 'Need 8 low‑mood moments.', ctaLabel: 'Log a mood', ctaHref: '/today' }
+      : undefined)
+
+  if (totalLow < 8 || context.moodLogs.length < 7) {
+    confidence.level = 'Low'
+    confidence.reasons.push('Need at least 8 low-mood records and 7 mood logs')
+  } else if (
+    confidence.level === 'High' &&
+    (totalLow < 20 || context.moodLogs.length < 14)
+  ) {
+    confidence.level = 'Med'
+    confidence.reasons.push('Need more low-mood coverage for high confidence')
+  }
 
   return {
     spec: comfortSpendSpec,

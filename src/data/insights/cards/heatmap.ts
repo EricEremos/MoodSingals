@@ -6,7 +6,9 @@ import { directConfidence } from '../confidence'
 export function readinessCard(context: InsightContext): IndexResult {
   const spendCount = context.totalSpendRecords
   const moodCount = context.moodLogs.length
-  const taggedCount = context.linkedTransactions.filter((tx) => tx.linkConfidence === 'High').length
+  const taggedCount = context.directLinkedTransactions.length
+  const inferredCount = context.inferredLinkedTransactions.length
+  const unlinkedCount = context.unlinkedTransactions.length
 
   const missingSpend = Math.max(20 - spendCount, 0)
   const missingMood = Math.max(7 - moodCount, 0)
@@ -24,11 +26,11 @@ export function readinessCard(context: InsightContext): IndexResult {
   return {
     spec: readinessSpec,
     insight: nextGap,
-    data: { spendCount, moodCount, taggedCount },
-    detailsNote: 'Counts tagged purchases and overall coverage.',
+    data: { spendCount, moodCount, taggedCount, inferredCount, unlinkedCount },
+    detailsNote: 'Counts DIRECT, INFERRED, and UNLINKED records for data readiness.',
     vizSpec: {
       type: 'bar',
-      labels: ['Spend records', 'Mood logs', 'Mood‑tagged'],
+      labels: ['Spend records', 'Mood logs', 'DIRECT tags'],
       values: [spendCount, moodCount, taggedCount],
     },
     microAction: 'Tag 5 purchases to boost confidence.',

@@ -1,6 +1,5 @@
 import type { MoodLog, SpendMoment, Transaction, TxMoodAnnotation } from '../db'
-import type { IndexResult, IndexSpec } from '../indices/types'
-import { validateIndexSpec } from '../indices/types'
+import type { IndexResult } from '../indices/types'
 import { linkTransactionsToMood } from './linkMood'
 import { readinessCard } from './cards/heatmap'
 import { topTriggerTagsCard } from './cards/stressTriggers'
@@ -9,15 +8,8 @@ import { impulseMomentsMapCard } from './cards/impulseRisk'
 import { comfortSpendingPatternCard } from './cards/comfortSpend'
 import { happyAnchorsCard } from './cards/happyAnchors'
 import { moodSpendMapCard } from './cards/moodSpendMap'
-import { smallFrequentLeaksCard } from './cards/smallFrequentLeaks'
-import { moodSpendHeatmapSpec } from '../indices/specs/moodSpendHeatmap'
-import { impulseRiskSpec } from '../indices/specs/impulseRisk'
-import { lateNightSpec } from '../indices/specs/lateNight'
-import { topTriggersSpec } from '../indices/specs/topTriggers'
-import { comfortSpendSpec } from '../indices/specs/comfortSpend'
-import { worthItAnchorsSpec } from '../indices/specs/worthItAnchors'
-import { smallFrequentLeaksSpec } from '../indices/specs/smallFrequentLeaks'
-import { readinessSpec } from '../indices/specs/readiness'
+import { weeklyDriftCard } from './cards/weekdayDrift'
+import { validateIndexStandardV1 } from '../indices/specs'
 
 export type InsightContext = {
   spendMoments: SpendMoment[]
@@ -30,6 +22,9 @@ export type InsightContext = {
   directCount: number
   totalSpendRecords: number
   linkedTransactions: ReturnType<typeof linkTransactionsToMood>
+  directLinkedTransactions: ReturnType<typeof linkTransactionsToMood>
+  inferredLinkedTransactions: ReturnType<typeof linkTransactionsToMood>
+  unlinkedTransactions: ReturnType<typeof linkTransactionsToMood>
 }
 
 export function computeInsights(
@@ -38,8 +33,12 @@ export function computeInsights(
   transactions: Transaction[],
   annotations: TxMoodAnnotation[] = [],
 ) {
+  validateIndexStandardV1()
   const linkedAll = linkTransactionsToMood(transactions, moodLogs, annotations)
   const linkedTx = linkedAll.filter((tx) => tx.linkedMood)
+  const directLinkedTransactions = linkedAll.filter((tx) => tx.linkTier === 'DIRECT' && tx.linkedMood)
+  const inferredLinkedTransactions = linkedAll.filter((tx) => tx.linkTier === 'INFERRED' && tx.linkedMood)
+  const unlinkedTransactions = linkedAll.filter((tx) => tx.linkTier === 'UNLINKED')
   const totalSpendRecords = spendMoments.length + transactions.length
   const linkedCount = spendMoments.length + linkedTx.length
   const linkCoverage = totalSpendRecords ? linkedCount / totalSpendRecords : 0
@@ -56,19 +55,10 @@ export function computeInsights(
     directCount,
     totalSpendRecords,
     linkedTransactions: linkedAll,
+    directLinkedTransactions,
+    inferredLinkedTransactions,
+    unlinkedTransactions,
   }
-
-  const specs: IndexSpec[] = [
-    moodSpendHeatmapSpec,
-    impulseRiskSpec,
-    lateNightSpec,
-    topTriggersSpec,
-    comfortSpendSpec,
-    worthItAnchorsSpec,
-    smallFrequentLeaksSpec,
-    readinessSpec,
-  ]
-  specs.forEach(validateIndexSpec)
 
   const cards = [
     moodSpendMapCard,
@@ -77,7 +67,7 @@ export function computeInsights(
     topTriggerTagsCard,
     comfortSpendingPatternCard,
     happyAnchorsCard,
-    smallFrequentLeaksCard,
+    weeklyDriftCard,
     readinessCard,
   ]
     .map((fn) => fn(context))

@@ -8,12 +8,16 @@ export type Citation = {
 }
 
 export type ConfidenceSpec = {
+  mapping_function: string
   low: string
   medium: string
   high: string
 }
 
+export type IndexStandardVersion = 'index_standard_v1'
+
 export type IndexSpec = {
+  standard_version: IndexStandardVersion
   id: string
   name: string
   user_question: string
@@ -27,7 +31,7 @@ export type IndexSpec = {
   confidence: ConfidenceSpec
   limitations: string[]
   citations: Citation[]
-  validation_plan: string
+  validation_plan: string[]
   change_log: string[]
 }
 
@@ -53,6 +57,7 @@ export type IndexResult = {
 export function validateIndexSpec(spec: IndexSpec) {
   const missing: string[] = []
   const required: Array<keyof IndexSpec> = [
+    'standard_version',
     'id',
     'name',
     'user_question',
@@ -74,5 +79,30 @@ export function validateIndexSpec(spec: IndexSpec) {
   }
   if (missing.length) {
     throw new Error(`IndexSpec missing required fields: ${missing.join(', ')}`)
+  }
+
+  if (spec.standard_version !== 'index_standard_v1') {
+    throw new Error(`IndexSpec ${spec.id} has unsupported standard version: ${spec.standard_version}`)
+  }
+  if (!spec.primary_inputs.length) {
+    throw new Error(`IndexSpec ${spec.id} must define at least one primary input`)
+  }
+  if (!spec.citations.length) {
+    throw new Error(`IndexSpec ${spec.id} must cite at least one evidence source`)
+  }
+  if (!spec.limitations.length) {
+    throw new Error(`IndexSpec ${spec.id} must include at least one limitation`)
+  }
+  if (!spec.change_log.length) {
+    throw new Error(`IndexSpec ${spec.id} must include at least one change log entry`)
+  }
+  if (!spec.validation_plan.length) {
+    throw new Error(`IndexSpec ${spec.id} must include a validation plan`)
+  }
+  if (!spec.confidence.mapping_function?.trim()) {
+    throw new Error(`IndexSpec ${spec.id} must define confidence.mapping_function`)
+  }
+  if (!spec.normalization.toLowerCase().includes('within-user') && !spec.normalization.toLowerCase().includes('absolute')) {
+    throw new Error(`IndexSpec ${spec.id} normalization must state within-user or absolute scale`)
   }
 }

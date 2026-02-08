@@ -5,6 +5,7 @@ export type LinkedTransaction = Transaction & {
   linkedMood?: MoodLog
   linkConfidence?: 'Low' | 'Med' | 'High'
   linkSource?: 'DIRECT' | 'INFERRED'
+  linkTier: 'DIRECT' | 'INFERRED' | 'UNLINKED'
 }
 
 const FORWARD_MS = 6 * 60 * 60 * 1000
@@ -46,13 +47,20 @@ export function linkTransactionsToMood(
         },
         linkConfidence: 'High',
         linkSource: 'DIRECT',
+        linkTier: 'DIRECT',
       }
     }
 
     if (tx.mood_log_id) {
       const manual = sortedMoods.find((m) => m.id === tx.mood_log_id)
       if (manual) {
-        return { ...tx, linkedMood: manual, linkConfidence: 'High', linkSource: 'DIRECT' }
+        return {
+          ...tx,
+          linkedMood: manual,
+          linkConfidence: 'High',
+          linkSource: 'DIRECT',
+          linkTier: 'DIRECT',
+        }
       }
     }
 
@@ -77,9 +85,16 @@ export function linkTransactionsToMood(
     if (candidate) {
       const haystack = `${tx.category} ${tx.merchant} ${tx.description || ''}`.toLowerCase()
       const tagMatch = candidate.tags.some((tag) => haystack.includes(tag))
-      confidence = tagMatch ? 'Med' : 'Low'
+      const sameDay = sameLocalDay(new Date(candidate.occurred_at), txDate)
+      confidence = sameDay && tagMatch ? 'Med' : 'Low'
     }
 
-    return { ...tx, linkedMood: candidate, linkConfidence: confidence, linkSource: candidate ? 'INFERRED' : undefined }
+    return {
+      ...tx,
+      linkedMood: candidate,
+      linkConfidence: confidence,
+      linkSource: candidate ? 'INFERRED' : undefined,
+      linkTier: candidate ? 'INFERRED' : 'UNLINKED',
+    }
   })
 }
