@@ -1,64 +1,69 @@
-# MoodSignals — Ledger + Mood Notes
+# MoodSignals — Local-First Mood x Money Coaching
 
-MoodSignals is a local-first spending ledger where users can attach fast mood notes to purchases. Insights are descriptive pattern signals, not diagnosis.
+MoodSignals is a local-first React app for understanding the chain of **emotion -> spending -> outcome** from quick logs, CSV imports, and deterministic insight cards.
 
-## Product Model
-- Default surface: **Ledger** (`/`) with transaction rows + optional mood notes.
-- Mood linkage:
-  - `DIRECT`: manual mood tag on transaction.
-  - `INFERRED`: nearest mood in `[-2h, +6h]`.
-  - `UNLINKED`: no link.
-- Internal valence/arousal is stored silently; UI stays plain language.
+The app now has a stronger service layer built around two principles:
+- **Keep core analytics local and deterministic**
+- **Use remote services only for coaching and manual backup**
 
-## Stack
-- Frontend: React + TypeScript + Vite on Cloudflare Pages
-- Local data: IndexedDB via Dexie
-- Optional sync backend: Cloudflare Workers + D1
-- Optional encrypted sync: client-side AES-GCM via WebCrypto (passphrase-derived key)
+## What Runs Where
+### Local-only by default
+- Mood logs, spend moments, imported transactions, and insight-card computation stay in IndexedDB.
+- CSV parsing, normalization, and confidence scoring remain local.
+- The app still works without Supabase auth or remote backups.
 
-## Index Standard v1
-All Insight Cards use `IndexSpec` with runtime validation (`src/data/indices/types.ts`) and include:
-- id, name, user_question, construct
-- primary_inputs, matching_rule, formula, units
-- normalization (within-user by default), minimum_data
-- confidence mapping function with low/medium/high
-- limitations, citations, validation_plan, change_log
+### Remote services
+- `GET /api/health`: safe readiness check for generation + Supabase server config
+- `POST /api/ai/reflect`: structured coaching reflection from a derived insight digest
+- `POST /api/ai/weekly-plan`: structured weekly plan from the same digest
+- `GET /api/backups`: list manual backups for the signed-in user
+- `POST /api/backups`: create a manual backup snapshot in Supabase
+- `GET /api/backups/:id`: fetch a backup and restore it locally
 
-Supporting files:
-- Evidence library: `src/data/indices/evidence.ts`
-- Spec registry + runtime validation: `src/data/indices/specs/index.ts`
-- Markdown renderer: `src/data/indices/markdown.ts`
+## AI Service Design
+The generation model is used only for **narrative coaching**:
+- explain what the local cards suggest
+- propose concrete next actions
+- build a short weekly plan
 
-Current 8-card set:
-1. Mood -> Spend Heatmap
-2. Impulse Risk Proxy
-3. Late-Night Leak
-4. Top 3 Emotional Triggers
-5. Comfort Spend Pattern
-6. Worth-It Spend Anchors
-7. Weekly Drift
-8. Readiness + Coverage
+The model is **not** used for:
+- CSV mapping
+- transaction parsing
+- mood linkage
+- confidence scoring
+- replacing deterministic insight logic
 
-## Local Development
+The server sends only a compact `InsightDigest` built from local cards, not the raw CSV file.
+
+## Backup Design
+Manual backup uses Supabase email auth plus a server-side snapshot API.
+
+- Local Dexie remains the working source of truth.
+- A backup stores the exported JSON snapshot shape plus metadata.
+- Restore replaces local device data only after explicit confirmation.
+- Supabase schema is included in `supabase/schema.sql`.
+- Backup and reflection writes run with the signed-in user's Supabase session under RLS.
+- A service-role key is optional for future admin-only operations, not required for standard backup flow.
+
+## Environment Variables
+### Server-side
 ```bash
-npm install
-npm run dev
+GENERATION_API_KEY=...
+GENERATION_API_URL=...
+GENERATION_MODEL=...
+GENERATION_PROVIDER_NAME=...
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
-## Optional Encrypted Sync (Cloudflare)
+### Client-side public auth config
+```bash
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=...
+```
 
-Worker project:
-- Location: `cloudflare/worker`
-- D1 migration: `cloudflare/worker/migrations/0001_init.sql`
-- Worker routes:
-  - `POST /auth/register/start`
-  - `POST /auth/register/finish`
-  - `POST /auth/login/start`
-  - `POST /auth/login/finish`
-  - `POST /auth/logout`
-  - `GET /me`
-  - `GET /vault`
-  - `PUT /vault`
+A template is included in `.env.example`.
 
 Setup:
 ```bash
@@ -66,32 +71,19 @@ cd cloudflare/worker
 npm install
 ```
 
-Configure `cloudflare/worker/wrangler.toml`:
-- set `database_id`
-- set `RP_ID`, `RP_NAME`, `ORIGIN`
-- set secret:
+The Vite dev server also serves the `/api/*` routes locally.
+
+## Supabase Setup
+1. Create or use a Supabase project.
+2. Add `SUPABASE_URL` plus either `SUPABASE_ANON_KEY` or `SUPABASE_SERVICE_ROLE_KEY` to the server runtime.
+3. Add the public auth env vars for the browser.
+4. Run the SQL in `supabase/schema.sql`.
+5. Enable email auth in Supabase.
+
+## Verification Commands
 ```bash
-wrangler secret put SESSION_SECRET
+npm run build
+npm run test
 ```
 
-Frontend API base:
-- set `VITE_SYNC_API_BASE` (defaults to `/api`)
-
-## Study Mode
-- Route: `/study-mode`
-- Tracks:
-  - task accuracy/time/confidence
-  - A/B variant (`card-feed` vs `dashboard`)
-  - retention proxies (mood streak + session count)
-  - readiness deltas (moods/spend/tagged)
-- Exports one-page HTML report.
-
-## Manual QA Checklist
-1. Import CSV, open Ledger, confirm rows render.
-2. Tag one transaction (`+ Mood`), edit it, then delete it; confirm cards update immediately.
-3. Run `Tag 5 purchases` and finish in under 2 minutes.
-4. At 390px width, confirm ledger rows and mood modal fit with no overflow.
-5. After tagging >=10 purchases, verify at least 3 cards are `Med` or `High`.
-6. Confirm card `Evidence & limits` shows citation ids and limitations.
-7. Confirm no clinical or moralizing wording in surfaced UI copy.
-8. If Worker is configured: create passkey, set sync passphrase, `Sync now`, refresh, `Restore latest`, verify history returns.
+`npm run lint` still includes older repo issues outside the new service work.
