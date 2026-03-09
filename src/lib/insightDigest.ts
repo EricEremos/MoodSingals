@@ -1,4 +1,4 @@
-import type { InsightCardResult } from '../data/insights'
+import type { IndexResult } from '../data/indices/types'
 
 export type InsightDigest = {
   generatedAt: string
@@ -21,7 +21,7 @@ export type InsightDigest = {
 }
 
 export function buildInsightDigest(params: {
-  cards: InsightCardResult[]
+  cards: IndexResult[]
   reflectionDue: boolean
   counts: {
     spendMoments: number
@@ -37,8 +37,8 @@ export function buildInsightDigest(params: {
     reflectionDue,
     counts,
     topCards: cards.slice(0, 5).map((card) => ({
-      id: card.id,
-      title: card.title,
+      id: card.spec.id,
+      title: card.spec.name,
       insight: card.insight,
       microAction: card.microAction,
       confidenceLevel: card.confidence.level,
