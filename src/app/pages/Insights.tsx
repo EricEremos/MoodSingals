@@ -4,6 +4,16 @@ import InsightCard from '../../components/InsightCard'
 import SpendMomentQuickLog from '../../components/SpendMomentQuickLog'
 import { db, type MoodLog, type SpendMoment, type Transaction } from '../../data/db'
 import { computeInsights, confidenceScore, type InsightCardResult } from '../../data/insights'
+import { buildInsightDigest } from '../../lib/insightDigest'
+import {
+  fetchServiceHealth,
+  requestAiReflect,
+  requestWeeklyPlan,
+  type AiReflectResponse,
+  type ServiceHealth,
+  type WeeklyPlanResponse,
+} from '../../lib/serviceApi'
+import { getCurrentSession } from '../../lib/supabaseClient'
 import { sameLocalDay } from '../../utils/dates'
 import { loadSampleData } from '../../data/sample'
 
@@ -11,26 +21,47 @@ export default function Insights() {
   const [spendMoments, setSpendMoments] = useState<SpendMoment[]>([])
   const [moods, setMoods] = useState<MoodLog[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [importsCount, setImportsCount] = useState(0)
   const [cards, setCards] = useState<InsightCardResult[]>([])
   const [computeMs, setComputeMs] = useState(0)
   const [lastRefresh, setLastRefresh] = useState(0)
   const [showQuickLog, setShowQuickLog] = useState(false)
   const [status, setStatus] = useState('')
+  const [serviceHealth, setServiceHealth] = useState<ServiceHealth | null>(null)
+  const [aiStatus, setAiStatus] = useState('')
+  const [aiLoading, setAiLoading] = useState<'reflect' | 'weekly-plan' | null>(null)
+  const [reflectResult, setReflectResult] = useState<AiReflectResponse | null>(null)
+  const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlanResponse | null>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
     const load = async () => {
-      const [spends, logs, tx] = await Promise.all([
+      const [spends, logs, tx, importCount] = await Promise.all([
         db.spend_moments.toArray(),
         db.mood_logs.toArray(),
         db.transactions.toArray(),
+        db.imports.count(),
       ])
       setSpendMoments(spends)
       setMoods(logs)
       setTransactions(tx)
+      setImportsCount(importCount)
     }
-    load()
+    void load()
   }, [lastRefresh])
+
+  useEffect(() => {
+    const loadServiceHealth = async () => {
+      try {
+        const nextHealth = await fetchServiceHealth()
+        setServiceHealth(nextHealth)
+      } catch {
+        setServiceHealth(null)
+      }
+    }
+
+    void loadServiceHealth()
+  }, [])
 
   useEffect(() => {
     const start = performance.now()
@@ -56,7 +87,22 @@ export default function Insights() {
     const last = Number(localStorage.getItem('ms_reflection_done') || 0)
     if (!last) return true
     return Date.now() - last > 6 * 24 * 60 * 60 * 1000
-  }, [spendMoments.length, moods.length, lastRefresh])
+  }, [spendMoments.length, moods.length])
+
+  const insightDigest = useMemo(
+    () =>
+      buildInsightDigest({
+        cards,
+        reflectionDue,
+        counts: {
+          spendMoments: spendMoments.length,
+          moodLogs: moods.length,
+          transactions: transactions.length,
+          imports: importsCount,
+        },
+      }),
+    [cards, reflectionDue, spendMoments.length, moods.length, transactions.length, importsCount],
+  )
 
   const nextAction = useMemo(() => {
     if (!spendMoments.length && !moods.length && !transactions.length) {
@@ -134,6 +180,36 @@ export default function Insights() {
     }
   }
 
+  const requestAi = async (mode: 'reflect' | 'weekly-plan') => {
+    if (!cards.length) {
+      setAiStatus('Add more local data before requesting AI coaching.')
+      return
+    }
+
+    setAiLoading(mode)
+    setAiStatus(mode === 'reflect' ? 'Generating reflection...' : 'Generating weekly plan...')
+
+    try {
+      const session = await getCurrentSession()
+      const accessToken = session?.access_token
+
+      if (mode === 'reflect') {
+        const response = await requestAiReflect(insightDigest, accessToken)
+        setReflectResult(response)
+        setAiStatus(`Reflection generated with ${response.providerName}.`)
+        return
+      }
+
+      const response = await requestWeeklyPlan(insightDigest, accessToken)
+      setWeeklyPlan(response)
+      setAiStatus(`Weekly plan generated with ${response.providerName}.`)
+    } catch (error) {
+      setAiStatus(error instanceof Error ? error.message : 'Could not generate AI coaching output.')
+    } finally {
+      setAiLoading(null)
+    }
+  }
+
   return (
     <div>
       <div className="section-header">
@@ -157,14 +233,11 @@ export default function Insights() {
           <div className="inline-list" style={{ marginTop: 12 }}>
             <button
               className="button button-primary"
-              onClick={() => runAction(nextAction.primaryAction)}
+              onClick={() => void runAction(nextAction.primaryAction)}
             >
               {nextAction.primaryLabel}
             </button>
-            <button
-              className="button"
-              onClick={() => runAction(nextAction.secondaryAction)}
-            >
+            <button className="button" onClick={() => void runAction(nextAction.secondaryAction)}>
               {nextAction.secondaryLabel}
             </button>
           </div>
@@ -226,6 +299,10 @@ export default function Insights() {
             <span>Imported transactions</span>
             <span className="status-value">{transactions.length}</span>
           </div>
+          <div className="status-row">
+            <span>Import batches</span>
+            <span className="status-value">{importsCount}</span>
+          </div>
           {computeMs ? (
             <div className="status-row">
               <span>Last compute</span>
@@ -233,6 +310,100 @@ export default function Insights() {
             </div>
           ) : null}
         </div>
+      </div>
+
+      <div style={{ marginTop: 28 }} className="card card-elevated">
+        <div className="card-header">
+          <div>
+            <h2 className="insight-title">AI coach</h2>
+            <p className="helper">
+              AI only sees a derived digest of your local insight cards, not your raw CSV file.
+            </p>
+          </div>
+          <span
+            className={serviceHealth?.services.generation.configured ? 'status-ok' : 'status-warn'}
+          >
+            {serviceHealth?.services.generation.configured ? 'Ready' : 'Unavailable'}
+          </span>
+        </div>
+
+        <div className="inline-list">
+          <button
+            className="button button-primary"
+            onClick={() => void requestAi('reflect')}
+            disabled={aiLoading !== null || !serviceHealth?.services.generation.configured}
+          >
+            {aiLoading === 'reflect' ? 'Generating...' : 'Generate reflection'}
+          </button>
+          <button
+            className="button"
+            onClick={() => void requestAi('weekly-plan')}
+            disabled={aiLoading !== null || !serviceHealth?.services.generation.configured}
+          >
+            {aiLoading === 'weekly-plan' ? 'Generating...' : 'Build weekly plan'}
+          </button>
+          {serviceHealth?.services.generation.model ? (
+            <span className="pill">{serviceHealth.services.generation.model}</span>
+          ) : null}
+        </div>
+
+        {aiStatus ? <p className="helper">{aiStatus}</p> : null}
+
+        {reflectResult ? (
+          <div style={{ marginTop: 14 }} className="grid grid-2">
+            <div className="card" style={{ padding: 16 }}>
+              <h3 style={{ marginTop: 0 }}>Reflection</h3>
+              <p className="helper">{reflectResult.result.summary}</p>
+              <div className="micro-action" style={{ marginTop: 12 }}>
+                <strong>Confidence note:</strong> {reflectResult.result.confidenceNote}
+              </div>
+            </div>
+            <div className="card" style={{ padding: 16 }}>
+              <h3 style={{ marginTop: 0 }}>Signals</h3>
+              <ul>
+                {reflectResult.result.signals.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+              <h3>Watchouts</h3>
+              <ul>
+                {reflectResult.result.watchouts.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="card" style={{ padding: 16 }}>
+              <h3 style={{ marginTop: 0 }}>Next actions</h3>
+              <ul>
+                {reflectResult.result.actions.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        ) : null}
+
+        {weeklyPlan ? (
+          <div style={{ marginTop: 14 }} className="grid grid-2">
+            <div className="card" style={{ padding: 16 }}>
+              <h3 style={{ marginTop: 0 }}>{weeklyPlan.result.headline}</h3>
+              <p className="helper">{weeklyPlan.result.focus}</p>
+              <div className="micro-action" style={{ marginTop: 12 }}>
+                <strong>If/then rule:</strong> {weeklyPlan.result.ifThenRule}
+              </div>
+            </div>
+            <div className="card" style={{ padding: 16 }}>
+              <h3 style={{ marginTop: 0 }}>Habits for this week</h3>
+              <ul>
+                {weeklyPlan.result.habits.map((habit) => (
+                  <li key={habit}>{habit}</li>
+                ))}
+              </ul>
+              <h3>Check-in prompt</h3>
+              <p className="helper">{weeklyPlan.result.checkInPrompt}</p>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {reflectionDue ? (

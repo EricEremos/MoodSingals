@@ -1,74 +1,69 @@
-# MoodSignals — Emotion-Based Budget Tracker (Local-First)
+# MoodSignals — Local-First Mood x Money Coaching
 
-Local-first analytics app for understanding the chain of **Emotion → Spend → Outcome Proxy** using your own CSV data and quick mood check-ins. All parsing, storage, and insights run **entirely in the browser**. No backend. No accounts. No data leaves your device.
+MoodSignals is a local-first React app for understanding the chain of **emotion -> spending -> outcome** from quick logs, CSV imports, and deterministic insight cards.
 
-## Why Local-First
-- **Privacy-first:** CSV data never leaves the browser.
-- **Offline-capable:** Works as a static app on Cloudflare Pages.
-- **Low-ops:** No backend infrastructure required.
+The app now has a stronger service layer built around two principles:
+- **Keep core analytics local and deterministic**
+- **Use remote services only for coaching and manual backup**
 
-## Architecture (MVP)
-- **Cloudflare Pages + React (Vite) + TypeScript**
-- **IndexedDB via Dexie** for local storage
-- **CSV parsing in Web Worker via PapaParse** (no UI freeze)
-- **Compute in browser**, lazy-loaded charts
+## What Runs Where
+### Local-only by default
+- Mood logs, spend moments, imported transactions, and insight-card computation stay in IndexedDB.
+- CSV parsing, normalization, and confidence scoring remain local.
+- The app still works without Supabase auth or remote backups.
 
-## Core MVP Constraints
-- CSV upload only (no bank APIs)
-- 8 Insight Cards with confidence + explanation
-- Mood logging <10 seconds, 1–3 check-ins/day
-- Privacy controls: delete/export, sensitive-data disclaimers
-- Static deploy on Cloudflare Pages (no backend)
+### Remote services
+- `GET /api/health`: safe readiness check for generation + Supabase server config
+- `POST /api/ai/reflect`: structured coaching reflection from a derived insight digest
+- `POST /api/ai/weekly-plan`: structured weekly plan from the same digest
+- `GET /api/backups`: list manual backups for the signed-in user
+- `POST /api/backups`: create a manual backup snapshot in Supabase
+- `GET /api/backups/:id`: fetch a backup and restore it locally
 
-## CSV Import Pipeline
-- Runs in **Web Worker** with **chunked parsing**
-- **Progress updates** back to UI
-- Normalize to canonical schema
-- **IndexedDB writes in chunks** (default 750 rows)
-- Error states and recovery actions in wizard
+## AI Service Design
+The generation model is used only for **narrative coaching**:
+- explain what the local cards suggest
+- propose concrete next actions
+- build a short weekly plan
 
-### Mapping Wizard V1
-- Upload CSV → preview 20 rows
-- Map columns: date/datetime, amount, merchant, description, category (optional), currency (optional)
-- Validation: date parse failures count, amount parse failures count
-- Heuristics:
-  - Detect delimiter
-  - Detect sign convention (if >70% negative, treat negative as outflow; toggleable)
-  - Default timezone = browser timezone
-  - Default category = "Uncategorized"
+The model is **not** used for:
+- CSV mapping
+- transaction parsing
+- mood linkage
+- confidence scoring
+- replacing deterministic insight logic
 
-## Insight Engine
-Linking rule:
-- Transaction links to most recent mood in past **6 hours**
-- If `time_unknown`, link to same-day earlier mood only
+The server sends only a compact `InsightDigest` built from local cards, not the raw CSV file.
 
-Confidence:
-- High/Med/Low based on sample size + missingness + time-unknown rate
+## Backup Design
+Manual backup uses Supabase email auth plus a server-side snapshot API.
 
-Required cards:
-- Mood → Spend heatmap
-- Stress trigger categories (Top 3)
-- Late-night leak (22–02)
-- Impulse risk proxy (high arousal + low valence)
-- Comfort spend after low mood
-- Happy spend anchors
-- Weekday drift
-- Unlinked spend share
+- Local Dexie remains the working source of truth.
+- A backup stores the exported JSON snapshot shape plus metadata.
+- Restore replaces local device data only after explicit confirmation.
+- Supabase schema is included in `supabase/schema.sql`.
+- Backup and reflection writes run with the signed-in user's Supabase session under RLS.
+- A service-role key is optional for future admin-only operations, not required for standard backup flow.
 
-## Privacy & Controls
-- Delete all data
-- Delete by import batch
-- Export all data (JSON + CSV)
-- Supportive copy, no diagnosis framing
+## Environment Variables
+### Server-side
+```bash
+GENERATION_API_KEY=...
+GENERATION_API_URL=...
+GENERATION_MODEL=...
+GENERATION_PROVIDER_NAME=...
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
 
-## Performance Instrumentation
-Hidden Debug page (Settings → Debug):
-- `parse_ms`, `normalize_ms`, `db_write_ms`, `compute_ms`
-- `row_count`, `file_size_mb`, `time_unknown_pct`
+### Client-side public auth config
+```bash
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=...
+```
 
-## Cloudflare Pages
-- Build command: `npm run build`
-- Output directory: `dist`
+A template is included in `.env.example`.
 
 ## Local Development
 ```bash
@@ -76,5 +71,19 @@ npm install
 npm run dev
 ```
 
-## Sources (Background)
-The MVP design is aligned with widely used local-first patterns: client-side CSV parsing with PapaParse (Worker + streaming), IndexedDB via Dexie for persistent storage, and lightweight charting (uPlot for performance). These are summarized in docs and demo repositories across the ecosystem (e.g., local-first budgeting apps, offline-first expense trackers, and IndexedDB performance guidance).
+The Vite dev server also serves the `/api/*` routes locally.
+
+## Supabase Setup
+1. Create or use a Supabase project.
+2. Add `SUPABASE_URL` plus either `SUPABASE_ANON_KEY` or `SUPABASE_SERVICE_ROLE_KEY` to the server runtime.
+3. Add the public auth env vars for the browser.
+4. Run the SQL in `supabase/schema.sql`.
+5. Enable email auth in Supabase.
+
+## Verification Commands
+```bash
+npm run build
+npm run test
+```
+
+`npm run lint` still includes older repo issues outside the new service work.
