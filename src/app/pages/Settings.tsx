@@ -6,10 +6,7 @@ import { exportLocalSnapshot } from '../../lib/localSnapshot'
 import { supportiveCopy } from '../../utils/copy'
 
 export default function Settings() {
-  const [imports, setImports] = useState(0)
-  const [transactions, setTransactions] = useState(0)
-  const [moods, setMoods] = useState(0)
-  const [spends, setSpends] = useState(0)
+  const [counts, setCounts] = useState<Counts>(INITIAL_COUNTS)
   const [status, setStatus] = useState('')
   const [serviceHealth, setServiceHealth] = useState<ServiceHealth | null>(null)
   const [serviceStatus, setServiceStatus] = useState('Checking server integrations...')
@@ -88,7 +85,7 @@ export default function Settings() {
   }, [])
 
   const deleteAll = async () => {
-    if (!confirm('Delete all local data? This cannot be undone.')) return
+    if (!confirm('Delete all local data?')) return
     await db.delete()
     await db.open()
     await refreshLocalCounts()
@@ -155,7 +152,7 @@ export default function Settings() {
   }
 
   return (
-    <div>
+    <div className="page-stack">
       <div className="section-header">
         <div>
           <h1 className="page-title">Settings</h1>
@@ -181,7 +178,37 @@ export default function Settings() {
           <p className="helper">Transactions: {transactions}</p>
           <p className="helper">Mood logs: {moods}</p>
         </div>
-      </div>
+        <p className="body-subtle" style={{ marginTop: 10 }}>
+          {copy.settings.signInLabel}
+        </p>
+        <div className="inline-list" style={{ marginTop: 12 }}>
+          <Button
+            variant="ghost"
+            type="button"
+            disabled={!ENABLE_SYNC}
+            onClick={() => setStatus(copy.settings.signInPending)}
+          >
+            {copy.settings.providerGoogle}
+          </Button>
+          <Button
+            variant="ghost"
+            type="button"
+            disabled={!ENABLE_SYNC}
+            onClick={() => setStatus(copy.settings.signInPending)}
+          >
+            {copy.settings.providerApple}
+          </Button>
+          <Button
+            variant="ghost"
+            type="button"
+            disabled={!ENABLE_SYNC}
+            onClick={() => setStatus(copy.settings.signInPending)}
+          >
+            {copy.settings.providerKakao}
+          </Button>
+        </div>
+        {!ENABLE_SYNC ? <p className="body-subtle">{copy.common.syncOptional}</p> : null}
+      </Card>
 
       <div style={{ marginTop: 20 }} className="card card-elevated">
         <div className="card-header">
@@ -265,8 +292,9 @@ export default function Settings() {
             Debug
           </a>
         </div>
-        {status ? <p className="helper">{status}</p> : null}
-      </div>
+      </Card>
+
+      {status ? <p className="status-text">{status}</p> : null}
     </div>
   )
 }

@@ -13,9 +13,16 @@ export default function MoodCheckin({
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const remaining = 140 - note.length
-
   const tagOptions = useMemo(() => TAGS, [])
+
+  const formatTag = (tag: string) =>
+    tag.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+
+  const toneClass = (valence: number) => {
+    if (valence >= 1) return 'mood-button-positive'
+    if (valence <= -1) return 'mood-button-negative'
+    return 'mood-button-neutral'
+  }
 
   const toggleTag = (tag: string) => {
     setTags((prev) => {
@@ -56,16 +63,15 @@ export default function MoodCheckin({
     <div className="card">
       <div className="section-header">
         <div>
-          <h2 className="section-title">Mood Check-in</h2>
-          <p className="section-subtitle">Quick mood log.</p>
+          <h2 className="section-title">Mood check‑in</h2>
         </div>
-        <div className="tag">10 seconds</div>
+        <div className="tag">10s</div>
       </div>
       <div className="mood-grid">
         {MOODS.map((mood) => (
           <button
             key={mood.label}
-            className="mood-button"
+            className={`mood-button ${toneClass(mood.valence)}`}
             onClick={() => {
               saveMood(mood)
             }}
@@ -78,7 +84,7 @@ export default function MoodCheckin({
       </div>
 
       <div style={{ marginTop: 20 }}>
-        <div className="helper">Tags (max 2)</div>
+        <div className="helper">Tags</div>
         <div className="inline-list">
           {tagOptions.map((tag) => (
             <button
@@ -87,21 +93,21 @@ export default function MoodCheckin({
               onClick={() => toggleTag(tag)}
               type="button"
             >
-              {tag}
+              {formatTag(tag)}
             </button>
           ))}
         </div>
+        <div className="helper">Max 2</div>
       </div>
 
       <div style={{ marginTop: 20 }}>
-        <div className="helper">Note (140 max)</div>
+        <div className="helper">Note (optional)</div>
         <input
           className="input"
           value={note}
           onChange={(event) => setNote(event.target.value.slice(0, 140))}
-          placeholder="What’s on your mind?"
+          placeholder="Optional note"
         />
-        <div className="helper">{remaining} characters left</div>
       </div>
     </div>
   )

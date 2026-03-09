@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import InsightCard from '../../components/InsightCard'
 import SpendMomentQuickLog from '../../components/SpendMomentQuickLog'
 import { db, type MoodLog, type SpendMoment, type Transaction } from '../../data/db'
@@ -16,6 +16,7 @@ import {
 import { getCurrentSession } from '../../lib/supabaseClient'
 import { sameLocalDay } from '../../utils/dates'
 import { loadSampleData } from '../../data/sample'
+import { copy } from '../../utils/copy'
 
 export default function Insights() {
   const [spendMoments, setSpendMoments] = useState<SpendMoment[]>([])
@@ -43,7 +44,7 @@ export default function Insights() {
         db.imports.count(),
       ])
       setSpendMoments(spends)
-      setMoods(logs)
+      setMoods(moodLogs)
       setTransactions(tx)
       setImportsCount(importCount)
     }
@@ -104,79 +105,32 @@ export default function Insights() {
     [cards, reflectionDue, spendMoments.length, moods.length, transactions.length, importsCount],
   )
 
-  const nextAction = useMemo(() => {
-    if (!spendMoments.length && !moods.length && !transactions.length) {
-      return {
-        title: 'Start with a spend moment',
-        description: 'Log one moment or try demo data.',
-        primaryLabel: 'Log spend moment',
-        primaryAction: 'quicklog',
-        secondaryLabel: 'Try demo data',
-        secondaryAction: 'demo',
-      }
-    }
-    if (reflectionDue) {
-      return {
-        title: 'Weekly reflection',
-        description: '3 minutes. Simple prompts.',
-        primaryLabel: 'Open reflection',
-        primaryAction: 'reflection',
-        secondaryLabel: 'Log spend moment',
-        secondaryAction: 'quicklog',
-      }
-    }
-    if (!hasSpendToday) {
-      return {
-        title: 'Log a spend moment',
-        description: 'Quick entry.',
-        primaryLabel: 'Log spend moment',
-        primaryAction: 'quicklog',
-        secondaryLabel: 'Log mood',
-        secondaryAction: 'mood',
-      }
-    }
-    if (!hasMoodToday) {
-      return {
-        title: 'Log today’s mood',
-        description: 'Quick mood check-in.',
-        primaryLabel: 'Log mood',
-        primaryAction: 'mood',
-        secondaryLabel: 'Log spend moment',
-        secondaryAction: 'quicklog',
-      }
-    }
+  const readiness = useMemo(() => {
+    const weekAgo = now - 7 * 24 * 60 * 60 * 1000
+    const monthAgo = now - 30 * 24 * 60 * 60 * 1000
+    const moodsThisWeek = moods.filter((entry) => new Date(entry.occurred_at).getTime() >= weekAgo).length
+    const spendLast30 =
+      spendMoments.filter((entry) => new Date(entry.created_at).getTime() >= monthAgo).length +
+      transactions.filter((entry) => new Date(entry.occurred_at).getTime() >= monthAgo).length
+    const moodTaggedPurchases = annotations.length
+    const totalSpend = spendLast30 || 1
+    const coverage = Math.round((moodTaggedPurchases / totalSpend) * 100)
     return {
-      title: 'Review insights',
-      description: 'Your week at a glance.',
-      primaryLabel: 'View insights',
-      primaryAction: 'insights',
-      secondaryLabel: 'Log spend moment',
-      secondaryAction: 'quicklog',
+      moodsThisWeek,
+      spendLast30,
+      moodTaggedPurchases,
+      coverage,
     }
-  }, [spendMoments.length, moods.length, transactions.length, reflectionDue, hasSpendToday, hasMoodToday])
+  }, [moods, spendMoments, transactions, annotations, now])
 
-  const runAction = async (action: string) => {
-    if (action === 'quicklog') {
-      setShowQuickLog(true)
-      return
-    }
-    if (action === 'demo') {
-      setStatus('Loading demo data...')
+  const loadDemo = async () => {
+    try {
+      setStatus('Loading...')
       await loadSampleData()
-      setStatus('Demo data loaded (not your real data).')
+      setStatus(copy.insights.demoLoaded)
       setLastRefresh(Date.now())
-      return
-    }
-    if (action === 'mood') {
-      navigate('/log')
-      return
-    }
-    if (action === 'insights') {
-      return
-    }
-    if (action === 'reflection') {
-      const reflection = document.getElementById('reflection')
-      reflection?.scrollIntoView({ behavior: 'smooth' })
+    } catch {
+      setStatus(copy.insights.demoFailed)
     }
   }
 
@@ -211,15 +165,14 @@ export default function Insights() {
   }
 
   return (
-    <div>
-      <div className="section-header">
+    <div className="page-stack">
+      <header className="page-header">
         <div>
-          <h1 className="page-title">Insights</h1>
-          <p className="section-subtitle">Your week at a glance.</p>
+          <h2 className="page-title">{copy.insights.title}</h2>
         </div>
-      </div>
+      </header>
 
-      {status ? <p className="helper">{status}</p> : null}
+      {status ? <p className="status-text">{status}</p> : null}
 
       <div className="grid grid-2">
         <div className="card card-elevated">
@@ -277,27 +230,28 @@ export default function Insights() {
               </Link>
             </div>
           </div>
-        </div>
-      </div>
+        </Card>
 
-      <div style={{ marginTop: 28 }} className="card">
-        <div className="card-header">
-          <div>
-            <h2 className="insight-title">Counts</h2>
-          </div>
-        </div>
-        <div className="status-grid">
-          <div className="status-row">
-            <span>Spend moments</span>
-            <span className="status-value">{spendMoments.length}</span>
-          </div>
-          <div className="status-row">
-            <span>Mood logs</span>
-            <span className="status-value">{moods.length}</span>
-          </div>
-          <div className="status-row">
-            <span>Imported transactions</span>
-            <span className="status-value">{transactions.length}</span>
+        <Card>
+          <CardHeader>
+            <h3 className="card-title">{copy.insights.readinessTitle}</h3>
+            <InfoSheet title={copy.insights.readinessInfoTitle}>
+              <ul className="sheet-list">
+                {copy.insights.readinessInfoBody.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </InfoSheet>
+          </CardHeader>
+          <div className="metric-list" style={{ marginTop: 16 }}>
+            <ProgressBar label={copy.insights.moodsMetric} value={readiness.moodsThisWeek} max={7} />
+            <ProgressBar label={copy.insights.spendMetric} value={readiness.spendLast30} max={30} />
+            <ProgressBar
+              label={copy.insights.taggedMetric}
+              value={readiness.moodTaggedPurchases}
+              max={10}
+              valueLabel={`${readiness.coverage}%`}
+            />
           </div>
           <div className="status-row">
             <span>Import batches</span>
@@ -437,37 +391,19 @@ export default function Insights() {
 
       <div style={{ marginTop: 28 }}>
         <div className="section-header">
-          <div>
-            <h2 className="section-title">Insight cards</h2>
-            <p className="section-subtitle">Short, clear, and actionable.</p>
-          </div>
+          <div className="section-title">{copy.insights.feedTitle}</div>
         </div>
-        <div className="card-feed">
-          {cards.map((card) => (
-            <InsightCard key={card.id} card={card} />
-          ))}
-        </div>
-      </div>
 
-      {showQuickLog ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true">
-          <div className="modal">
-            <div className="modal-header">
-              <h3 className="insight-title">Log a spend moment</h3>
-              <button className="button button-ghost" onClick={() => setShowQuickLog(false)}>
-                Close
-              </button>
-            </div>
-            <SpendMomentQuickLog
-              compact
-              onSaved={() => {
-                setLastRefresh(Date.now())
-                setShowQuickLog(false)
-              }}
-            />
+        {cards.length ? (
+          <div className="card-feed">
+            {cards.map((card) => (
+              <InsightCard key={card.spec.id} card={card} />
+            ))}
           </div>
-        </div>
-      ) : null}
+        ) : (
+          <EmptyState title={copy.insights.emptyCards} />
+        )}
+      </section>
     </div>
   )
 }

@@ -26,6 +26,7 @@ export default function SpendMomentQuickLog({
   compact?: boolean
 }) {
   const [amount, setAmount] = useState('')
+  const [currency, setCurrency] = useState('HKD')
   const [category, setCategory] = useState(CATEGORIES[0])
   const [tags, setTags] = useState<string[]>([])
   const [mood, setMood] = useState(QUICK_MOODS[0])
@@ -34,7 +35,16 @@ export default function SpendMomentQuickLog({
   const [saving, setSaving] = useState(false)
   const [undoId, setUndoId] = useState<string | null>(null)
 
+  const toneClass = (valence: number) => {
+    if (valence >= 1) return 'mood-button-positive'
+    if (valence <= -1) return 'mood-button-negative'
+    return 'mood-button-neutral'
+  }
+
   const tagOptions = useMemo(() => TAGS, [])
+
+  const formatTag = (tag: string) =>
+    tag.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 
   const toggleTag = (tag: string) => {
     setTags((prev) => {
@@ -61,6 +71,7 @@ export default function SpendMomentQuickLog({
         id,
         created_at: toISO(now),
         amount: parsed,
+        currency,
         category,
         mood_label: mood.label,
         valence: mood.valence,
@@ -92,22 +103,28 @@ export default function SpendMomentQuickLog({
     <div className="card">
       <div className="section-header">
         <div>
-          <h2 className="section-title">Spend Moment</h2>
-          <p className="section-subtitle">Fast log.</p>
+          <h2 className="section-title">Spend moment</h2>
         </div>
-        <div className="tag">10 seconds</div>
+        <div className="tag">15s</div>
       </div>
 
       <div className="grid grid-2">
         <div>
           <label className="helper">Amount</label>
-          <input
-            className="input"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-            placeholder="$12"
-            inputMode="decimal"
-          />
+          <div className="inline-list">
+            <input
+              className="input"
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              placeholder="12"
+              inputMode="decimal"
+            />
+            <select className="select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+              <option value="HKD">HKD</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+            </select>
+          </div>
         </div>
         <div>
           <label className="helper">Category</label>
@@ -132,7 +149,9 @@ export default function SpendMomentQuickLog({
           {QUICK_MOODS.map((option) => (
             <button
               key={option.label}
-              className={option.label === mood.label ? 'mood-button mood-button-active' : 'mood-button'}
+              className={`mood-button ${toneClass(option.valence)} ${
+                option.label === mood.label ? 'mood-button-active' : ''
+              }`}
               onClick={() => setMood(option)}
               type="button"
             >
@@ -144,7 +163,7 @@ export default function SpendMomentQuickLog({
       </div>
 
       <div style={{ marginTop: 16 }}>
-          <label className="helper">Urge</label>
+        <label className="helper">Urge</label>
         <div className="inline-list">
           {[0, 1, 2].map((level) => (
             <button
@@ -169,27 +188,28 @@ export default function SpendMomentQuickLog({
               onClick={() => toggleTag(tag)}
               type="button"
             >
-              {tag}
+              {formatTag(tag)}
             </button>
           ))}
         </div>
+        <div className="helper">Max 2</div>
       </div>
 
       {!compact ? (
         <div style={{ marginTop: 16 }}>
-          <label className="helper">Note</label>
+          <label className="helper">Note (optional)</label>
           <input
             className="input"
             value={note}
             onChange={(event) => setNote(event.target.value.slice(0, 140))}
-            placeholder="Short note"
+            placeholder="Optional note"
           />
         </div>
       ) : null}
 
       <div style={{ marginTop: 16 }} className="inline-list">
         <button className="button button-primary" onClick={save} disabled={saving}>
-          {saving ? 'Saving...' : 'Save spend moment'}
+          {saving ? 'Saving...' : 'Save'}
         </button>
         {undoId ? (
           <button className="button button-muted" onClick={undo} type="button">

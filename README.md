@@ -65,10 +65,10 @@ VITE_SUPABASE_ANON_KEY=...
 
 A template is included in `.env.example`.
 
-## Local Development
+Setup:
 ```bash
+cd cloudflare/worker
 npm install
-npm run dev
 ```
 
 The Vite dev server also serves the `/api/*` routes locally.

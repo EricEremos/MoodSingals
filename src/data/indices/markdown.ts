@@ -1,0 +1,55 @@
+import type { IndexSpec } from './types'
+
+function list(items: string[]) {
+  return items.map((item) => `- ${item}`).join('\n')
+}
+
+export function renderIndexSpecMarkdown(spec: IndexSpec): string {
+  return [
+    `# ${spec.name}`,
+    '',
+    `- Standard: ${spec.standard_version}`,
+    `- ID: ${spec.id}`,
+    `- User question: ${spec.user_question}`,
+    '',
+    '## Construct',
+    spec.construct,
+    '',
+    '## Primary Inputs',
+    list(spec.primary_inputs),
+    '',
+    '## Matching Rule',
+    spec.matching_rule,
+    '',
+    '## Formula',
+    spec.formula,
+    '',
+    '## Units',
+    spec.units,
+    '',
+    '## Normalization',
+    spec.normalization,
+    '',
+    '## Minimum Data',
+    spec.minimum_data,
+    '',
+    '## Confidence Mapping',
+    `- Function: ${spec.confidence.mapping_function}`,
+    `- Low: ${spec.confidence.low}`,
+    `- Medium: ${spec.confidence.medium}`,
+    `- High: ${spec.confidence.high}`,
+    '',
+    '## Limitations',
+    list(spec.limitations),
+    '',
+    '## Citations',
+    list(spec.citations.map((citation) => `[${citation.id}] ${citation.authors} (${citation.year}) ${citation.title}`)),
+    '',
+    '## Validation Plan',
+    list(spec.validation_plan),
+    '',
+    '## Change Log',
+    list(spec.change_log),
+    '',
+  ].join('\n')
+}

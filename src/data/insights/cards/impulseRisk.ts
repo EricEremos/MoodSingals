@@ -1,50 +1,60 @@
-import type { InsightCardResult, InsightContext } from '../index'
-import { confidenceFromCount } from '../confidence'
+import type { IndexResult } from '../../indices/types'
+import type { InsightContext } from '../index'
+import { impulseRiskSpec } from '../../indices/specs/impulseRisk'
+import type { Confidence } from '../confidence'
+import { directConfidence } from '../confidence'
+import { directLinkDetailsNote, moodTagUnlockGap, selectMoodLinkedTransactions } from '../directLinks'
 
-export function impulseMomentsMapCard(context: InsightContext): InsightCardResult {
-  const highUrge = context.spendMoments.filter(
-    (moment) => moment.urge_level === 2 && moment.valence < 0,
-  )
-  const byCategory = highUrge.reduce<Record<string, number>>((acc, moment) => {
-    acc[moment.category] = (acc[moment.category] || 0) + 1
-    return acc
-  }, {})
-  const labels = Object.keys(byCategory)
-  const values = labels.map((label) => byCategory[label])
-  const total = highUrge.length
+const DISCRETIONARY = new Set(['Dining', 'Shopping', 'Subscriptions', 'Other', 'Entertainment'])
 
-  const confidence = confidenceFromCount({
-    count: total,
-    minMed: 3,
-    minHigh: 8,
-    reasonLabel: 'high-urge moments',
+export function impulseMomentsMapCard(context: InsightContext): IndexResult {
+  const selection = selectMoodLinkedTransactions(context)
+  const linked = selection.linked
+  const discretionaryTx = linked.filter((tx) => DISCRETIONARY.has(tx.category))
+  const discretionarySpend = discretionaryTx.length
+
+  const riskTx = discretionaryTx.filter((tx) => {
+    const mood = tx.linkedMood
+    return mood && mood.mood_valence <= -1 && mood.mood_arousal >= 1.5
   })
 
+  const percent = discretionarySpend ? (riskTx.length / discretionarySpend) * 100 : 0
+
+  const confidence: Confidence = directConfidence(context.directCount)
+  const detailsNote = directLinkDetailsNote(selection.usesInferred)
   const gap =
-    total < 3
-      ? {
-          message: 'Need 3 high-urge moments to map a pattern.',
-          ctaLabel: 'Log a spend moment',
-          ctaHref: '/log',
-        }
-      : undefined
+    moodTagUnlockGap(context.directCount) ||
+    (discretionarySpend < 20
+      ? { message: 'Need 20 discretionary spends.', ctaLabel: 'Log a spend moment', ctaHref: '/today' }
+      : undefined)
+
+  if (discretionarySpend < 20 || context.moodLogs.length < 7) {
+    confidence.level = 'Low'
+    confidence.reasons.push('Need at least 20 discretionary linked transactions and 7 mood logs')
+  } else if (
+    confidence.level === 'High' &&
+    (discretionarySpend < 40 || context.moodLogs.length < 14)
+  ) {
+    confidence.level = 'Med'
+    confidence.reasons.push('Need more discretionary coverage for high confidence')
+  }
 
   return {
-    id: 'impulse-moments-map',
-    title: 'Impulse moments',
+    spec: impulseRiskSpec,
     insight:
-      total >= 3
-        ? `High-urge moments show up most in ${labels[0] || 'a few categories'}.`
-        : 'No pattern yet.',
-    data: { total, byCategory },
-    vizSpec:
-      labels.length > 0
-        ? { type: 'bar', labels, values }
-        : { type: 'bar', labels: ['No data'], values: [1] },
-    microAction: 'Pause once before a high-urge spend.',
+      discretionarySpend >= 20
+        ? `${Math.round(percent)}% of discretionary spend happens during low‑mood, high‑energy windows.`
+        : 'Not enough data yet.',
+    data: { discretionarySpend, riskCount: riskTx.length },
+    detailsNote,
+    vizSpec: {
+      type: 'donut',
+      labels: ['Risk window', 'Other'],
+      values: [riskTx.length, Math.max(discretionarySpend - riskTx.length, 0)],
+    },
+    microAction: 'When energy is high and mood is low, try a 60‑second pause.',
     confidence,
-    howComputed: 'High-urge spends with low mood.',
-    relevance: 0.95,
+    relevance: 0.9,
     gap,
   }
 }

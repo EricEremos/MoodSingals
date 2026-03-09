@@ -13,13 +13,16 @@ export type Transaction = {
   inflow: number
   time_unknown: boolean
   import_batch_id: string
+  raw_hash?: string
   mood_log_id?: string
+  worth_it?: boolean
 }
 
 export type SpendMoment = {
   id: string
   created_at: string
   amount: number
+  currency: string
   category: string
   mood_label: string
   valence: number
@@ -27,6 +30,7 @@ export type SpendMoment = {
   tags: string[]
   urge_level: 0 | 1 | 2
   note?: string
+  worth_it?: boolean
 }
 
 export type MoodLog = {
@@ -56,10 +60,26 @@ export type ImportBatch = {
   compute_ms: number
   time_unknown_pct: number
   mapping: Record<string, string | null>
+  source_name?: string
+  mapping_json?: string
+  file_fingerprint?: string
+}
+
+export type TxMoodAnnotation = {
+  id: string
+  transaction_id: string
+  created_at: string
+  mood_label: string
+  valence: number
+  arousal: number
+  tags: string[]
+  memory_confidence?: 'high' | 'medium' | 'low'
+  note?: string
 }
 
 class MoodSignalsDB extends Dexie {
   transactions!: Table<Transaction, string>
+  tx_mood_annotations!: Table<TxMoodAnnotation, string>
   spend_moments!: Table<SpendMoment, string>
   mood_logs!: Table<MoodLog, string>
   imports!: Table<ImportBatch, string>
@@ -72,7 +92,28 @@ class MoodSignalsDB extends Dexie {
       imports: 'id, created_at',
     })
     this.version(2).stores({
-      transactions: 'id, occurred_at, category, import_batch_id, mood_log_id',
+      transactions: 'id, occurred_at, category, import_batch_id, mood_log_id, raw_hash',
+      spend_moments: 'id, created_at, category, urge_level',
+      mood_logs: 'id, occurred_at, mood_label',
+      imports: 'id, created_at',
+    })
+    this.version(3).stores({
+      transactions: 'id, occurred_at, category, import_batch_id, mood_log_id, raw_hash',
+      tx_mood_annotations: 'id, &transaction_id, created_at, mood_label',
+      spend_moments: 'id, created_at, category, urge_level',
+      mood_logs: 'id, occurred_at, mood_label',
+      imports: 'id, created_at',
+    })
+    this.version(4).stores({
+      transactions: 'id, occurred_at, category, import_batch_id, mood_log_id, raw_hash',
+      tx_mood_annotations: 'id, &transaction_id, created_at, mood_label',
+      spend_moments: 'id, created_at, category, urge_level',
+      mood_logs: 'id, occurred_at, mood_label',
+      imports: 'id, created_at',
+    })
+    this.version(5).stores({
+      transactions: 'id, occurred_at, category, import_batch_id, mood_log_id, raw_hash',
+      tx_mood_annotations: 'id, &transaction_id, created_at, mood_label, memory_confidence',
       spend_moments: 'id, created_at, category, urge_level',
       mood_logs: 'id, occurred_at, mood_label',
       imports: 'id, created_at',

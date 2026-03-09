@@ -1,38 +1,65 @@
 import { Link } from 'react-router-dom'
-import type { InsightCardResult } from '../../data/insights'
+import type { IndexResult } from '../../data/indices/types'
 import ChartMini from '../Charts'
 import ConfidenceBadge from '../ConfidenceBadge'
+import InfoSheet from '../InfoSheet'
+import { Card, Disclosure } from '../ui'
+import { copy } from '../../utils/copy'
 
-export default function InsightCard({ card }: { card: InsightCardResult }) {
-  const isLow = card.confidence.level === 'Low'
-  const confidenceHint = card.confidence.reasons.join(' • ') || 'Confidence score'
+export default function InsightCard({ card }: { card: IndexResult }) {
+  const confidenceReasons = card.confidence.reasons.join(' • ')
+  const confidenceHint =
+    copy.common.confidenceLevel[card.confidence.level] || confidenceReasons
 
   return (
-    <div className="card">
+    <Card as="article">
       <div className="card-header">
-        <h3 className="insight-title">{card.title}</h3>
+        <h3 className="card-title">{card.spec.name}</h3>
         <ConfidenceBadge confidence={card.confidence} />
       </div>
+
       <p className="insight-line">{card.insight}</p>
       <ChartMini spec={card.vizSpec} />
-      <div className="micro-action">
-        <strong>Next step:</strong> {card.microAction}
-      </div>
-      {card.gap ? (
-        <div className="gap-panel">
-          <div className="helper">{card.gap.message}</div>
-          <Link className="button button-muted" to={card.gap.ctaHref}>
-            {card.gap.ctaLabel}
-          </Link>
-        </div>
-      ) : null}
-      <p className="helper" style={{ marginTop: 10 }}>
-        {isLow ? `Low confidence: ${confidenceHint}.` : confidenceHint}
-      </p>
-      <details className="accordion">
-        <summary>Details</summary>
-        <p className="helper">{card.howComputed}</p>
-      </details>
-    </div>
+
+      <Disclosure title={copy.common.details} className="insight-disclosure">
+          <p className="body-subtle">Next: {card.microAction}</p>
+          {card.gap ? (
+            <div className="gap-panel">
+              <span className="body-subtle">{card.gap.message}</span>
+              <Link className="button button-muted" to={card.gap.ctaHref}>
+                {card.gap.ctaLabel}
+              </Link>
+            </div>
+          ) : null}
+          <InfoSheet title={copy.common.details}>
+            <ul className="sheet-list">
+              <li>Question this card answers: {card.spec.user_question}</li>
+              <li>How events are matched: {card.spec.matching_rule}</li>
+              <li>How the score is estimated: {card.spec.formula}</li>
+              <li>Data needed: {card.spec.minimum_data}</li>
+              <li>Adjustment rule: {card.spec.normalization}</li>
+            </ul>
+          </InfoSheet>
+      </Disclosure>
+
+      <Disclosure title={copy.common.evidence} className="insight-disclosure">
+          <p className="body-subtle">{confidenceHint}</p>
+          {confidenceReasons && confidenceReasons !== confidenceHint ? (
+            <p className="body-subtle">{confidenceReasons}</p>
+          ) : null}
+          <InfoSheet title="Evidence & limits">
+            <ul className="sheet-list">
+              {card.spec.citations.map((item) => (
+                <li key={item.id}>
+                  [{item.id}] {item.authors} ({item.year}) {item.title}
+                </li>
+              ))}
+              {card.spec.limitations.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </InfoSheet>
+      </Disclosure>
+    </Card>
   )
 }
